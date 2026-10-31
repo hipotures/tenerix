@@ -1,10 +1,16 @@
 #!/bin/sh
 # Write a verified 240 MiB image to the RN426 internal USB DOM, then verify by read-back.
-# Run as root on the NAS (Alpine Live). Usage: sh write-dom.sh IMAGE EXPECTED_SHA256
-# Works for both directions: the Tenerix DOM system image, or the factory backup to restore.
+# Run as root on the NAS (Alpine Live).
+#   sh write-dom.sh                      image + .sha256 next to this script (nothing to type)
+#   sh write-dom.sh IMAGE EXPECTED_SHA256   e.g. the factory backup to restore
 set -eu
-image=${1:?usage: write-dom.sh IMAGE EXPECTED_SHA256}
-expected=${2:?usage: write-dom.sh IMAGE EXPECTED_SHA256}
+here=$(dirname "$0")
+image=${1:-$here/tenerix-rn426-dom-system.img}
+if [ $# -ge 2 ]; then
+    expected=$2
+else
+    expected=$(cut -d' ' -f1 "$image.sha256")
+fi
 bytes=251658240
 
 fail() { echo "STOP: $*" >&2; exit 1; }
