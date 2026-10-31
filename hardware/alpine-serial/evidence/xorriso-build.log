@@ -1,0 +1,41 @@
+$ xorriso -indev /workspace/artifacts/alpine/original/alpine-standard-3.24.3-x86_64.iso -outdev /workspace/artifacts/alpine/alpine-3.24.3-rn426-serial-x86_64.iso -map /workspace/artifacts/alpine/build-4ernpzoo/config/boot/syslinux/syslinux.cfg /boot/syslinux/syslinux.cfg -map /workspace/artifacts/alpine/build-4ernpzoo/config/boot/grub/grub.cfg /boot/grub/grub.cfg -boot_image any replay -boot_image any gpt_disk_guid=3230323631303241b230303135323436 -volume_date all_file_dates 2026102100000000 -volume_date c 2026102100000000 -volume_date m 2026102100000000 -volume_date uuid 2026102100000000 -commit -end
+xorriso 1.5.8 : RockRidge filesystem manipulator, libburnia project.
+
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     122 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -indev '/workspace/artifacts/alpine/original/alpine-standard-3.24.3-x86_64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT
+Media summary: 1 session, 180736 data blocks,  353m data,  204g free
+Volume id    : 'alpine-std 3.24.3 x86_64'
+Drive current: -outdev '/workspace/artifacts/alpine/alpine-3.24.3-rn426-serial-x86_64.iso'
+Media current: stdio file, overwriteable
+Media status : is blank
+Media summary: 0 sessions, 0 data blocks, 0 data,  204g free
+xorriso : UPDATE :       1 files added in 1 seconds
+Added to ISO image: file '/boot/syslinux/syslinux.cfg'='/workspace/artifacts/alpine/build-4ernpzoo/config/boot/syslinux/syslinux.cfg'
+xorriso : UPDATE :       1 files added in 1 seconds
+Added to ISO image: file '/boot/grub/grub.cfg'='/workspace/artifacts/alpine/build-4ernpzoo/config/boot/grub/grub.cfg'
+xorriso : WARNING : -volid text problematic as automatic mount point name
+xorriso : WARNING : -volid text does not comply to ISO 9660 / ECMA 119 rules
+xorriso : NOTE : Replayed 20 boot related commands
+xorriso : NOTE : Copying to System Area: 32768 bytes from file '--interval:imported_iso:0s-15s:zero_mbrpt,zero_gpt:/workspace/artifacts/alpine/original/alpine-standard-3.24.3-x86_64.iso'
+libisofs: NOTE : Aligned image size to cylinder size by 240 blocks
+xorriso : UPDATE : Writing:       8192s    4.5%   fifo 100%  buf  50%
+xorriso : UPDATE : Writing:     161712s   89.4%   fifo  89%  buf  50%  283.1xD
+ISO image produced: 180704 sectors
+Written to medium : 180864 sectors at LBA 32
+Writing to '/workspace/artifacts/alpine/alpine-3.24.3-rn426-serial-x86_64.iso' completed successfully.
+
+xorriso : NOTE : Re-assessing -outdev '/workspace/artifacts/alpine/alpine-3.24.3-rn426-serial-x86_64.iso'
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     122 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -dev '/workspace/artifacts/alpine/alpine-3.24.3-rn426-serial-x86_64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT
+Media summary: 1 session, 180704 data blocks,  353m data,  204g free
+Volume id    : 'alpine-std 3.24.3 x86_64'

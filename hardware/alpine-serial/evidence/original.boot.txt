@@ -1,0 +1,47 @@
+$ xorriso -indev /workspace/artifacts/alpine/original/alpine-standard-3.24.3-x86_64.iso -report_el_torito plain -report_system_area plain
+xorriso 1.5.8 : RockRidge filesystem manipulator, libburnia project.
+
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     122 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -indev '/workspace/artifacts/alpine/original/alpine-standard-3.24.3-x86_64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT
+Media summary: 1 session, 180736 data blocks,  353m data,  204g free
+Volume id    : 'alpine-std 3.24.3 x86_64'
+El Torito catalog  : 54  1
+El Torito cat path : /boot/syslinux/boot.cat
+El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz         LBA
+El Torito boot img :   1  BIOS  y   none  0x0000  0x00      4         775
+El Torito boot img :   2  UEFI  y   none  0x0000  0x00   2880          55
+El Torito img path :   1  /boot/syslinux/isolinux.bin
+El Torito img opts :   1  boot-info-table isohybrid-suitable
+El Torito img path :   2  /boot/grub/efi.img
+System area options: 0x00000102
+System area summary: MBR isohybrid cyl-align-on GPT
+ISO image size/512 : 722944
+Partition offset   : 0
+MBR heads per cyl  : 64
+MBR secs per head  : 32
+MBR partition table:   N Status  Type        Start       Blocks
+MBR partition      :   1   0x80  0x00            0       722944
+MBR partition      :   2   0x00  0xef          220         2880
+MBR partition path :   2  /boot/grub/efi.img
+GPT                :   N  Info
+GPT disk GUID      :      3230323631303241b230303135323436
+GPT entry array    :      2  248  overlapping
+GPT lba range      :      64  722880  722943
+GPT partition name :   1  490053004f00480079006200720069006400
+GPT partname local :   1  ISOHybrid
+GPT partition GUID :   1  3230323631303241b231303135323436
+GPT type GUID      :   1  a2a0d0ebe5b9334487c068b6b72699c7
+GPT partition flags:   1  0x1000000000000001
+GPT start and size :   1  0  722880
+GPT partition name :   2  490053004f004800790062007200690064003100
+GPT partname local :   2  ISOHybrid1
+GPT partition GUID :   2  3230323631303241b232303135323436
+GPT type GUID      :   2  a2a0d0ebe5b9334487c068b6b72699c7
+GPT partition flags:   2  0x1000000000000001
+GPT start and size :   2  220  2880
+GPT partition path :   2  /boot/grub/efi.img

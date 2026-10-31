@@ -1,0 +1,16 @@
+xorriso 1.5.8 : RockRidge filesystem manipulator, libburnia project.
+
+xorriso 1.5.8
+ISO 9660 Rock Ridge filesystem manipulator and CD/DVD/BD burn program
+Copyright (C) 2026, Thomas Schmitt <scdbackup@gmx.net>, libburnia project.
+xorriso version   :  1.5.8
+Version timestamp :  2026.04.01.100001
+Build timestamp   :  -none-given-
+libisofs   in use :  1.5.8  (min. 1.5.8)
+libburn    in use :  1.5.8  (min. 1.5.8)
+libburn OS adapter:  internal GNU/Linux SG_IO adapter sg-linux
+libisoburn in use :  1.5.8  (min. 1.5.8)
+Provided under GNU GPL version 2 or later.
+There is NO WARRANTY, to the extent permitted by law.
+QEMU emulator version 11.0.3
+Copyright (c) 2003-2026 Fabrice Bellard and the QEMU Project developers

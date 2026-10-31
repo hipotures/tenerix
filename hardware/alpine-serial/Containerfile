@@ -1,0 +1,5 @@
+FROM docker.io/library/alpine:3.24.3@sha256:c26612752c78b18faacd63c7d50f4592c2e7b0f25e0e20e82bd74e465c57ab0d
+RUN apk add --no-cache xorriso=1.5.8-r0 qemu-system-x86_64=11.0.3-r0 \
+    seabios=1.17.0-r0 python3=3.14.10-r1 py3-pexpect=4.9-r2 cpio=2.15-r0 \
+    && apk info -v > /tool-packages.txt
+WORKDIR /workspace

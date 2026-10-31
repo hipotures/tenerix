@@ -1,0 +1,23 @@
+{
+  "source_url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-standard-3.24.3-x86_64.iso",
+  "source_sha256": "1629ffe7308d4f3d3eeeed3a97d09ad62293f6d37ef3e483a7306077fdac12be",
+  "source_release": "alpine-standard-3.24.3 261021",
+  "output": "alpine-3.24.3-rn426-serial-x86_64.iso",
+  "output_size": 370475008,
+  "output_sha256": "4be8e8b22510bb3dd17693e4383fea31a0cbc06bd9335bf476255708a5dd9c8e",
+  "workspace": "artifacts/alpine/build-4ernpzoo",
+  "changed_iso_files": [
+    "boot/grub/grub.cfg",
+    "boot/syslinux/boot.cat",
+    "boot/syslinux/isolinux.bin",
+    "boot/syslinux/syslinux.cfg"
+  ],
+  "unchanged_payload_count": 110,
+  "payload_sha256": {
+    "boot/vmlinuz-lts": "14ac8b1b0f92aacb815c46c2e6e9e70e9e80d9fd1391ebf48c0d4ba5059f6652",
+    "boot/initramfs-lts": "ccf7c7733215db35785d1a7c8151bc1b7cb8b888ed25060777b4315834b77116",
+    "boot/modloop-lts": "57aabdc5d5c00e5ef5b6e2e392d6fe6a7ad54d88b813a7ee6e618c20d6d8b1e6",
+    "boot/grub/efi.img": "88a28d7f87c30d52c5c2901441052d949772fd22afdda70e3825c9e9dd88f5f0",
+    "efi/boot/bootx64.efi": "c94adf8a5209aca5d264218767cf90a05ba37634388edb9a6a1b02607a101ea7"
+  }
+}
