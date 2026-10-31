@@ -1,0 +1,23 @@
+PADBAR N: 0x00000400
+PADBAR S: 0x00000400
+EN: 0x05000201
+CLK: 0x05000201
+MOSI: 0x05000200
+RST: 0x05000201
+DC: 0x45000201
+CS: 0x45000201
+IRQ: 0x45000102
+READ-ONLY PREFLIGHT PASSED; no GPIO writes
+{"status": "frame sent", "frame_ms": 209.29, "visual_confirmation": "required"}
+fuser_status=1
+coretemp
+34000
+it8613
+29000
+2020
+128
+1
+[ 2294.285425] it87: loading out-of-tree module taints kernel.
+[ 2294.285442] it87: module verification failed: signature and/or required key missing - tainting kernel
+[ 2294.287032] it87: Found IT8613E chip at 0xa30, revision 3
+[ 2294.287062] it87: Beeping is supported

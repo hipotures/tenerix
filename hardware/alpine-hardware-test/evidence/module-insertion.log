@@ -1,0 +1,10 @@
+/tmp/tenerix-alpine-hw/it87.ko: OK
+INSERTION_SUCCEEDED
+[ 2294.285425] it87: loading out-of-tree module taints kernel.
+[ 2294.285442] it87: module verification failed: signature and/or required key missing - tainting kernel
+[ 2294.287032] it87: Found IT8613E chip at 0xa30, revision 3
+[ 2294.287062] it87: Beeping is supported
+/sys/class/hwmon/hwmon0
+coretemp
+/sys/class/hwmon/hwmon1
+it8613

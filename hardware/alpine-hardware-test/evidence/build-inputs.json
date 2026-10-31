@@ -1,0 +1,15 @@
+{
+  "linux-lts-6.18.58-r0.apk": {
+    "sha256": "af399fba75cafb2940fc2853eb73ba2289aa463228f33541cd3010334a30992b",
+    "bytes": 146332001
+  },
+  "linux-lts-dev-6.18.58-r0.apk": {
+    "sha256": "10748bf4d33e265c74e20458a0c86a30bc932771f653b5a3dac22b5ebadc0f77",
+    "bytes": 22022175
+  },
+  "reproduction": {
+    "repro-one/it87.ko": "1155aae1cb9e794f41a719dc34ffe8df4a950c0911bc3b9d97cc4d5990235cf9",
+    "repro-two/it87.ko": "1155aae1cb9e794f41a719dc34ffe8df4a950c0911bc3b9d97cc4d5990235cf9",
+    "offline-rebuild/it87.ko": "1155aae1cb9e794f41a719dc34ffe8df4a950c0911bc3b9d97cc4d5990235cf9"
+  }
+}

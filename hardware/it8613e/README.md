@@ -1,4 +1,6 @@
-# RN426 IT8613E backport for Debian 13
+# RN426 IT8613E backport
+
+**Alpine update:** exact `6.18.58-0-lts` build and successful monitoring-only hardware test are documented in [alpine/README.md](alpine/README.md) and the [Alpine hardware test](../alpine-hardware-test/README.md). The Debian record below remains historical. The shared validator now accepts explicit target/header/stock paths for file-only validation on a different build host; the Debian Makefile still requires its exact running ABI.
 
 Date: 2026-10-31. Target: **6.12.107+deb13-amd64**, Debian kernel package **6.12.107-1**. Scope: source preparation, compilation and static validation only.
 

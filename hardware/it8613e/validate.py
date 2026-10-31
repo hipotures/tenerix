@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """Validate a built module against exact headers without loading any module."""
 
+import argparse
 import hashlib
+import shutil
 from pathlib import Path
 import struct
 import subprocess
-import sys
 
-KVER = "6.12.107+deb13-amd64"
-KDIR = Path("/lib/modules") / KVER / "build"
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("module", nargs="?", default="build/it87.ko")
+parser.add_argument("--kernel", default="6.12.107+deb13-amd64")
+parser.add_argument("--headers", type=Path)
+parser.add_argument("--stock", type=Path)
+args = parser.parse_args()
+KVER = args.kernel
+KDIR = args.headers or Path("/lib/modules") / KVER / "build"
+modinfo = shutil.which("modinfo")
+if modinfo is None:
+    raise SystemExit("kmod modinfo is required")
 
 
 def output(*args):
@@ -20,22 +30,22 @@ def require(condition, message):
         raise SystemExit(message)
 
 
-module = Path(sys.argv[1] if len(sys.argv) == 2 else "build/it87.ko").resolve()
-require(output("uname", "-r") == KVER, "Wrong running kernel")
+module = Path(args.module).resolve()
 require((KDIR / "include/config/kernel.release").read_text().strip() == KVER,
         "Wrong headers")
 blob = module.read_bytes()
 require(blob[:6] == b"\x7fELF\x02\x01", "Expected ELF64 little endian")
 elf_type, machine = struct.unpack_from("<HH", blob, 16)
 require((elf_type, machine) == (1, 62), "Expected x86-64 relocatable ELF")
-require(not Path("/sys/module/it87").exists(), "it87 is already loaded")
+
 
 info = {}
 for field in ("name", "vermagic", "depends", "license", "signer", "srcversion"):
-    info[field] = output("/usr/sbin/modinfo", "-F", field, str(module))
-stock = Path("/lib/modules") / KVER / "kernel/drivers/hwmon/it87.ko.xz"
-require(info["vermagic"] == output("/usr/sbin/modinfo", "-F", "vermagic", str(stock)),
+    info[field] = output(modinfo, "-F", field, str(module))
+stock = args.stock or Path("/lib/modules") / KVER / "kernel/drivers/hwmon/it87.ko.xz"
+require(info["vermagic"] == output(modinfo, "-F", "vermagic", str(stock)),
         "Stock and built module vermagic differ")
+require(info["vermagic"].split()[0] == KVER, "Module release mismatch")
 require(info["name"] == "it87" and info["license"] == "GPL", "Unexpected metadata")
 
 exports = {}
@@ -49,7 +59,7 @@ for line in output("nm", "-u", str(module)).splitlines():
         undefined.append(name)
 require(all(name in exports for name in undefined), "Unresolved strong symbol")
 
-# Linux 6.12 CONFIG_MODVERSIONS uses 64-byte modversion_info entries on amd64.
+# These x86-64 kernels with CONFIG_MODVERSIONS use 64-byte modversion_info entries on amd64.
 shoff = struct.unpack_from("<Q", blob, 40)[0]
 entsize, count, strindex = struct.unpack_from("<HHH", blob, 58)
 require(entsize == 64 and count > 0, "Unexpected ELF section format")
@@ -79,4 +89,4 @@ print(f"Strong undefined symbols resolved in exact Module.symvers: {len(undefine
 print(f"Version CRCs matched: {len(checked)}")
 print("Providers: " + ", ".join(sorted({exports[n][1] for n in undefined})))
 print("SHA256: " + hashlib.sha256(blob).hexdigest())
-print("Module not loaded; validation does not establish hardware safety.")
+print("File-only validation; no module loaded; hardware safety not established.")

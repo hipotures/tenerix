@@ -1,0 +1,8 @@
+test_normal_completion_restores_baseline (test_fan_test.FanTestSafety.test_normal_completion_restores_baseline) ... ok
+test_short_pwm80_test_restores_baseline (test_fan_test.FanTestSafety.test_short_pwm80_test_restores_baseline) ... ok
+test_temperature_failure_sets_full_speed (test_fan_test.FanTestSafety.test_temperature_failure_sets_full_speed) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.012s
+
+OK

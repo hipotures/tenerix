@@ -1,0 +1,11 @@
+{"status": "listening", "seconds": 300.0}
+{"button": "LEFT", "bitmap": 1}
+{"button": "UP", "bitmap": 4}
+{"button": "RIGHT", "bitmap": 2}
+{"button": "CENTER", "bitmap": 16}
+{"button": "CENTER", "bitmap": 16}
+{"button": "DOWN", "bitmap": 8}
+{"button": "LEFT", "bitmap": 1}
+{"button": "CENTER", "bitmap": 16}
+{"button": "CENTER", "bitmap": 16}
+{"counts": {"UP": 1, "DOWN": 1, "LEFT": 2, "RIGHT": 1, "CENTER": 4}, "mcu_reads": 9}

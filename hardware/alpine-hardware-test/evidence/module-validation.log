@@ -1,0 +1,12 @@
+ELF: ELF64 little-endian x86-64 relocatable
+name: it87
+vermagic: 6.18.58-0-lts SMP preempt mod_unload modversions
+depends: hwmon,hwmon-vid
+license: GPL
+signer: (empty)
+srcversion: (empty)
+Strong undefined symbols resolved in exact Module.symvers: 42
+Version CRCs matched: 43
+Providers: drivers/hwmon/hwmon, drivers/hwmon/hwmon-vid, vmlinux
+SHA256: 1155aae1cb9e794f41a719dc34ffe8df4a950c0911bc3b9d97cc4d5990235cf9
+File-only validation; no module loaded; hardware safety not established.

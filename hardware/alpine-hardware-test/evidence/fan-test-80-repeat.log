@@ -1,0 +1,9 @@
+{"elapsed": 0.0, "stage": 128, "cpu": {"temp10_input": 33000, "temp14_input": 32000, "temp4_input": 30000, "temp8_input": 32000, "temp1_input": 35000}, "temp2_input": 30000, "fan2_input": 2014, "pwm2": 128, "pwm2_enable": 1}
+{"elapsed": 0.0, "stage": 80, "cpu": {"temp10_input": 33000, "temp14_input": 32000, "temp4_input": 30000, "temp8_input": 32000, "temp1_input": 35000}, "temp2_input": 30000, "fan2_input": 2014, "pwm2": 80, "pwm2_enable": 1}
+{"elapsed": 5.0, "stage": 80, "cpu": {"temp10_input": 32000, "temp14_input": 32000, "temp4_input": 30000, "temp8_input": 31000, "temp1_input": 35000}, "temp2_input": 30000, "fan2_input": 1541, "pwm2": 80, "pwm2_enable": 1}
+{"elapsed": 10.0, "stage": 80, "cpu": {"temp10_input": 32000, "temp14_input": 32000, "temp4_input": 30000, "temp8_input": 31000, "temp1_input": 34000}, "temp2_input": 30000, "fan2_input": 1537, "pwm2": 80, "pwm2_enable": 1}
+{"elapsed": 15.0, "stage": 80, "cpu": {"temp10_input": 32000, "temp14_input": 32000, "temp4_input": 30000, "temp8_input": 31000, "temp1_input": 35000}, "temp2_input": 30000, "fan2_input": 1534, "pwm2": 80, "pwm2_enable": 1}
+{"elapsed": 20.0, "stage": 80, "cpu": {"temp10_input": 32000, "temp14_input": 32000, "temp4_input": 31000, "temp8_input": 31000, "temp1_input": 35000}, "temp2_input": 30000, "fan2_input": 1537, "pwm2": 80, "pwm2_enable": 1}
+{"elapsed": 25.0, "stage": 80, "cpu": {"temp10_input": 32000, "temp14_input": 33000, "temp4_input": 30000, "temp8_input": 32000, "temp1_input": 34000}, "temp2_input": 30000, "fan2_input": 1537, "pwm2": 80, "pwm2_enable": 1}
+{"elapsed": 30.0, "stage": 80, "cpu": {"temp10_input": 32000, "temp14_input": 32000, "temp4_input": 29000, "temp8_input": 32000, "temp1_input": 35000}, "temp2_input": 30000, "fan2_input": 1534, "pwm2": 80, "pwm2_enable": 1}
+{"restored_pwm2": 128, "emergency": false}

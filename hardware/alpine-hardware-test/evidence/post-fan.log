@@ -1,0 +1,12 @@
+coretemp
+34000
+it8613
+temp2_input=30000
+fan2_input=2008
+pwm2=128
+pwm2_enable=1
+[ 2294.285425] it87: loading out-of-tree module taints kernel.
+[ 2294.285442] it87: module verification failed: signature and/or required key missing - tainting kernel
+[ 2294.287032] it87: Found IT8613E chip at 0xa30, revision 3
+[ 2294.287062] it87: Beeping is supported
+panel_owner_status=1

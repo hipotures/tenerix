@@ -1,0 +1,8 @@
+FROM docker.io/library/alpine:3.24.3@sha256:c26612752c78b18faacd63c7d50f4592c2e7b0f25e0e20e82bd74e465c57ab0d
+# Context: artifacts/alpine-hardware, populated by fetch-inputs.py and signed dependency archives.
+# Offline installation prevents repository drift. No kernel-image package is installed.
+COPY builder-apks/ /inputs/
+RUN apk verify /inputs/*.apk \
+ && apk add --no-network /inputs/*.apk \
+ && rm -rf /inputs
+WORKDIR /work

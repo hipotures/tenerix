@@ -1,0 +1,18 @@
+test_actual_lcd_init_never_lowers_en_or_reset (test_panel.SafetyTests.test_actual_lcd_init_never_lowers_en_or_reset) ... ok
+test_fonts_use_complete_debian_or_alpine_pair (test_panel.SafetyTests.test_fonts_use_complete_debian_or_alpine_pair) ... ok
+test_guard_rejects_shared_low_irq_and_configuration_writes (test_panel.SafetyTests.test_guard_rejects_shared_low_irq_and_configuration_writes) ... ok
+test_missing_bus_never_falls_back (test_panel.SafetyTests.test_missing_bus_never_falls_back) ... ok
+test_missing_openrc_service_still_requires_device_owner_check (test_panel.SafetyTests.test_missing_openrc_service_still_requires_device_owner_check) ... ok
+test_model_override_forbidden_before_opening_devices (test_panel.SafetyTests.test_model_override_forbidden_before_opening_devices) ... ok
+test_no_idle_mcu_reads_one_per_assertion_and_all_five_maps (test_panel.SafetyTests.test_no_idle_mcu_reads_one_per_assertion_and_all_five_maps) ... ok
+test_public_names_and_bounded_loop (test_panel.SafetyTests.test_public_names_and_bounded_loop) ... ok
+test_second_owner_refused_before_gpio_is_opened (test_panel.SafetyTests.test_second_owner_refused_before_gpio_is_opened) ... ok
+test_service_ownership_openrc_systemd_and_errors (test_panel.SafetyTests.test_service_ownership_openrc_systemd_and_errors) ... ok
+test_stuck_low_startup_does_not_read_and_errors_are_visible (test_panel.SafetyTests.test_stuck_low_startup_does_not_read_and_errors_are_visible) ... ok
+test_unknown_bitmap_aborts_instead_of_hiding_protocol_errors (test_panel.SafetyTests.test_unknown_bitmap_aborts_instead_of_hiding_protocol_errors) ... ok
+test_unsafe_initial_levels_refused_before_any_write (test_panel.SafetyTests.test_unsafe_initial_levels_refused_before_any_write) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.026s
+
+OK

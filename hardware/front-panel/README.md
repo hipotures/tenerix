@@ -202,3 +202,26 @@ All NAS commands were issued from the development computer over SSH as `user`, w
 | Post-check | `fuser`, filtered `lsmod`, `systemctl --failed`, filtered recent `journalctl -k`, named hwmon temp/tach reads | No residual panel owner or failed unit; existing monitoring available |
 
 No secrets or raw production identifiers are included in committed evidence. The implementation and evidence are committed to the current project branch; the upstream checkout and caches are ignored.
+
+
+## Alpine 3.24 support (2026-10-31)
+
+The existing API and CLI now support OpenRC and Alpine's native DejaVu paths.
+`PanelLCD` retains upstream rendering and transport; only font construction changes.
+The pinned upstream checkout and MIT attribution are unchanged. The service check
+uses `rc-service rn426-panel status` when an OpenRC service exists, accepting only
+stopped status 3. With no such service, the exclusive flock and mandatory full
+`fuser -s /dev/mem` check still apply. Unknown init environments, missing tools,
+active services and indeterminate status fail closed. No service is installed,
+started or stopped. Preflight takes the same exclusive lease before mapping.
+
+Debian systemd ownership checks remain supported. Both regular and bold Mono
+fonts must exist together in `/usr/share/fonts/truetype/dejavu` (Debian) or
+`/usr/share/fonts/dejavu` (Alpine). No upstream hash guard, EN/RST protection,
+GPIO configuration protection or interrupt-triggered MSP430 restriction changed.
+`/dev/mem` security restrictions are never weakened.
+
+Actual RN426 Alpine results: OLED text visually confirmed; all five buttons
+observed in nine events. Thirteen safety tests pass on the development host,
+Alpine container and NAS. See [complete hardware evidence and commands](../alpine-hardware-test/README.md).
+There is no automatic service or hardware probe added by this port.

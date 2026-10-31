@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "distribution": "Alpine Linux 3.24 x86_64",
+  "kernel_release": "6.18.58-0-lts",
+  "kernel_package": "linux-lts-6.18.58-r0",
+  "headers_package": "linux-lts-dev-6.18.58-r0",
+  "aports_commit": "5fe63f789de75f6a71001cf2de771f922bedd0d2",
+  "kernel_source_commit": "2926d88bb7fc4608fd942453d929c39e4e5ec006",
+  "upstream_commits": [
+    "28e319062056586c255bac750eca2b595c19c31f",
+    "ab003112b4948774057bde1c488b0bdbd96d687c",
+    "600a85f556b783b5c619c4b6a576d5b2471be1ca"
+  ],
+  "prepared_source_sha256": "ccdd098144f8ef99bc40a183c46e1c889e5987c076f6f13478a913307212085f",
+  "header_config_sha256": "24cbcda9272285a9e10a09d19a971715a15c17c242757e8729f0f28bac7eac71",
+  "live_config_sha256": "7a917830169f855362d1271dfcd90b37bda8766dd39bce7062385f964ecdc3d2",
+  "module_symvers_sha256": "673788496cd0724536a305bae2b1d1b7901fedf052ccd8e2d10efc9404b6037a",
+  "module_sha256": "1155aae1cb9e794f41a719dc34ffe8df4a950c0911bc3b9d97cc4d5990235cf9",
+  "module_size": 945688,
+  "vermagic": "6.18.58-0-lts SMP preempt mod_unload modversions",
+  "dependencies": [
+    "hwmon",
+    "hwmon-vid"
+  ],
+  "compiler": "gcc (Alpine 15.2.0) 15.2.0 / gcc-15.2.0-r5",
+  "binutils": "2.45.1-r1",
+  "supported_kernels": [
+    "6.18.58-0-lts"
+  ],
+  "unsupported_kernels": [
+    "6.18.59-0-lts",
+    "6.12.107+deb13-amd64"
+  ],
+  "btf": "not generated: official headers omit vmlinux; no config or BTF checks were disabled",
+  "reproducibility": "Two fresh directories, identical bytes with fixed GCC random seed",
+  "panel_upstream_commit": "2968ee0514908d44b076ed1120f385a338bf1cd2",
+  "hardware_test": "RN426: successful insertion, 60-second read-only observation, then operator-authorized 30-second steps at PWM112/96/80/128",
+  "install_policy": "No automatic installation, depmod, initramfs, autoload or service activation"
+}

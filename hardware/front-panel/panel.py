@@ -11,6 +11,7 @@ import math
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -54,6 +55,55 @@ def find_i801_bus():
     if not Path(f"/dev/i2c-{bus}").is_char_device():
         raise RuntimeError("I801 character device missing")
     return bus
+
+
+def check_service_owner():
+    """Refuse active or indeterminate service ownership; never manage services."""
+    if Path("/run/openrc").is_dir():
+        if not Path("/etc/init.d/rn426-panel").exists():
+            return
+        command = ["rc-service", "rn426-panel", "status"]
+        stopped = {3}  # OpenRC status: stopped, not an arbitrary command failure.
+    elif Path("/run/systemd/system").is_dir():
+        command = ["systemctl", "is-active", "--quiet", "rn426-panel"]
+        stopped = {3, 4}  # inactive or unknown unit
+    else:
+        raise RuntimeError("Unknown init environment; panel ownership cannot be established")
+    if shutil.which(command[0]) is None:
+        raise RuntimeError("Panel service ownership tool is unavailable")
+    result = subprocess.run(command, check=False)
+    if result.returncode not in stopped:
+        raise RuntimeError("Panel service active or ownership check failed")
+
+
+def acquire_panel_lock():
+    fd = os.open("/run/lock/rn426-panel.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        check_service_owner()
+        owner = subprocess.run(["fuser", "-s", "/dev/mem"], check=False)
+        if owner.returncode != 1:
+            raise RuntimeError("/dev/mem already has an owner or ownership check failed")
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+class PanelLCD(LCD):
+    """Pinned upstream rendering/transport with distro-native font discovery."""
+    def __init__(self, gpio, geometry, init_seq):
+        from PIL import ImageFont
+        self.gpio = gpio
+        self.pages, self.cols = geometry
+        self.init_seq = init_seq
+        roots = (Path("/usr/share/fonts/truetype/dejavu"), Path("/usr/share/fonts/dejavu"))
+        fonts = next((root for root in roots if all((root / name).is_file() for name in
+                     ("DejaVuSansMono-Bold.ttf", "DejaVuSansMono.ttf"))), None)
+        if fonts is None:
+            raise RuntimeError("DejaVu Mono regular and bold fonts are required")
+        self.f1 = ImageFont.truetype(str(fonts / "DejaVuSansMono-Bold.ttf"), 16)
+        self.f2 = ImageFont.truetype(str(fonts / "DejaVuSansMono.ttf"), 13)
 
 
 class SafeGpio(DnvMmioGpio):
@@ -143,17 +193,11 @@ class Panel:
         self.reader = None
         try:
             verify_hardware()
-            if subprocess.run(["systemctl", "is-active", "--quiet", "rn426-panel"], check=False).returncode == 0:
-                raise RuntimeError("Upstream panel service is active; refusing a second controller")
-            self.lock = os.open("/run/lock/rn426-panel.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
-            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            owner = subprocess.run(["fuser", "-s", "/dev/mem"], check=False)
-            if owner.returncode != 1:
-                raise RuntimeError("/dev/mem already has an owner or ownership check failed")
+            self.lock = acquire_panel_lock()
             # Do not trust direct callers to pass a different model or pin map.
             spec = dict(MODELS["rn426"], en_can_pulse=False)
             self.gpio = SafeGpio(spec)
-            self.lcd = LCD(self.gpio, spec["geometry"], spec["init_seq"])
+            self.lcd = PanelLCD(self.gpio, spec["geometry"], spec["init_seq"])
             self.lcd.init()
         except BaseException:
             self.close()
@@ -233,15 +277,19 @@ def main():
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     if args.command == "preflight":
         verify_hardware()
-        gpio = SafeGpio(dict(MODELS["rn426"], en_can_pulse=False))
+        lock = acquire_panel_lock()
+        gpio = None
         try:
+            gpio = SafeGpio(dict(MODELS["rn426"], en_can_pulse=False))
             for c in sorted(gpio.COMMUNITIES):
                 print(f"PADBAR {c}: {gpio._rd32(c, gpio.PADBAR_OFF):#010x}")
             for name, pad in list(gpio._pads.items()) + [("IRQ", gpio._int_pad)]:
                 print(f"{name}: {gpio._rd32(*pad):#010x}")
             print("READ-ONLY PREFLIGHT PASSED; no GPIO writes")
         finally:
-            gpio.close()
+            if gpio is not None:
+                gpio.close()
+            os.close(lock)
         return
     with Panel() as panel:
         if args.command == "show":

@@ -1,0 +1,58 @@
+( 1/42) Installing libexpat (2.9.0-r0)
+( 2/42) Installing brotli-libs (1.2.1-r0)
+( 3/42) Installing libbz2 (1.0.8-r6)
+( 4/42) Installing libpng (1.6.59-r0)
+( 5/42) Installing freetype (2.14.3-r0)
+( 6/42) Installing fontconfig (2.17.1-r1)
+( 7/42) Installing encodings (1.1.0-r0)
+( 8/42) Installing libfontenc (1.1.9-r0)
+( 9/42) Installing mkfontscale (1.2.4-r0)
+(10/42) Installing font-dejavu (2.37-r6)
+(11/42) Installing libintl (1.0-r0)
+(12/42) Installing psmisc (23.7-r0)
+(13/42) Installing libffi (3.5.2-r1)
+(14/42) Installing gdbm (1.26-r0)
+(15/42) Installing xz-libs (5.8.4-r0)
+(16/42) Installing libgcc (15.2.0-r5)
+(17/42) Installing libstdc++ (15.2.0-r5)
+(18/42) Installing mpdecimal (4.0.1-r0)
+(19/42) Installing libpanelw (6.6_p20260516-r0)
+(20/42) Installing readline (8.3.3-r1)
+(21/42) Installing sqlite-libs (3.53.4-r0)
+(22/42) Installing python3 (3.14.10-r1)
+(23/42) Installing python3-pycache-pyc0 (3.14.10-r1)
+(24/42) Installing pyc (3.14.10-r1)
+(25/42) Installing py3-pillow-pyc (12.2.0-r0)
+(26/42) Installing python3-pyc (3.14.10-r1)
+(27/42) Installing libimagequant (4.2.2-r0)
+(28/42) Installing libjpeg-turbo (3.1.3-r0)
+(29/42) Installing lcms2 (2.19-r0)
+(30/42) Installing openjpeg (2.5.4-r2)
+(31/42) Installing libsharpyuv (1.6.0-r0)
+(32/42) Installing libwebp (1.6.0-r0)
+(33/42) Installing zstd-libs (1.5.7-r2)
+(34/42) Installing tiff (4.7.2-r0)
+(35/42) Installing libwebpdemux (1.6.0-r0)
+(36/42) Installing libwebpmux (1.6.0-r0)
+(37/42) Installing libxau (1.0.12-r0)
+(38/42) Installing libmd (1.2.0-r0)
+(39/42) Installing libbsd (0.12.2-r0)
+(40/42) Installing libxdmcp (1.1.5-r1)
+(41/42) Installing libxcb (1.17.0-r2)
+(42/42) Installing py3-pillow (12.2.0-r0)
+Executing busybox-1.37.0-r31.trigger
+Executing fontconfig-2.17.1-r1.trigger
+Executing mkfontscale-1.2.4-r0.trigger
+OK: 76.3 MiB in 81 packages
+/sys/class/hwmon/hwmon0
+coretemp
+/sys/class/hwmon/hwmon0/temp10_input
+34000
+/sys/class/hwmon/hwmon0/temp14_input
+35000
+/sys/class/hwmon/hwmon0/temp1_input
+37000
+/sys/class/hwmon/hwmon0/temp4_input
+33000
+/sys/class/hwmon/hwmon0/temp8_input
+33000

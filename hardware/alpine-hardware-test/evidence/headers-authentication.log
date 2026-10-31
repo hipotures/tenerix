@@ -1,0 +1,36 @@
+/work/artifacts/alpine-hardware/packages/linux-lts-dev-6.18.58-r0.apk: OK
+/work/artifacts/alpine-hardware/packages/linux-lts-6.18.58-r0.apk: OK
+( 1/30) Installing perl (5.42.2-r1)
+( 2/30) Installing libgmpxx (6.3.0-r4)
+( 3/30) Installing pkgconf (2.5.1-r0)
+( 4/30) Installing gmp-dev (6.3.0-r4)
+( 5/30) Installing mpc1-dev (1.3.1-r1)
+( 6/30) Installing mpfr-dev (4.2.2-r0)
+( 7/30) Installing libelf (0.195-r0)
+( 8/30) Installing musl-fts (1.2.7-r7)
+( 9/30) Installing libdw (0.195-r0)
+(10/30) Installing libasm (0.195-r0)
+(11/30) Installing brotli-libs (1.2.1-r0)
+(12/30) Installing c-ares (1.34.9-r0)
+(13/30) Installing libunistring (1.4.2-r0)
+(14/30) Installing libidn2 (2.3.8-r0)
+(15/30) Installing nghttp2-libs (1.70.0-r0)
+(16/30) Installing libpsl (0.21.5-r3)
+(17/30) Installing libcurl (8.23.0-r0)
+(18/30) Installing json-c (0.18-r1)
+(19/30) Installing libdebuginfod (0.195-r0)
+(20/30) Installing xz (5.8.4-r0)
+(21/30) Installing xz-dev (5.8.4-r0)
+(22/30) Installing zstd (1.5.7-r2)
+(23/30) Installing zstd-dev (1.5.7-r2)
+(24/30) Installing zlib-dev (1.3.2-r1)
+(25/30) Installing elfutils-dev (0.195-r0)
+(26/30) Installing bash (5.3.9-r1)
+  Executing bash-5.3.9-r1.post-install
+(27/30) Installing m4 (1.4.20-r1)
+(28/30) Installing flex (2.6.4-r8)
+(29/30) Installing bison (3.8.2-r3)
+(30/30) Installing linux-lts-dev (6.18.58-r0)
+Executing busybox-1.37.0-r31.trigger
+Executing kmod-34.2-r1.trigger
+OK: 443.8 MiB in 85 packages

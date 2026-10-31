@@ -142,6 +142,55 @@ class SafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Unexpected MSP430 bitmap"):
                 btn.events(0.07)
 
+    def test_service_ownership_openrc_systemd_and_errors(self):
+        result = type("Result", (), {})()
+        def directory(path):
+            return str(path) == self.init_directory
+        with patch.object(panel.Path, "is_dir", directory), \
+                patch.object(panel.Path, "exists", return_value=True), \
+                patch.object(panel.shutil, "which", return_value="/sbin/tool"), \
+                patch.object(panel.subprocess, "run", return_value=result) as run:
+            for directory_name, command in (("/run/openrc", "rc-service"),
+                                             ("/run/systemd/system", "systemctl")):
+                self.init_directory = directory_name
+                result.returncode = 3
+                panel.check_service_owner()
+                self.assertEqual(run.call_args.args[0][0], command)
+                for code in (0, 1, 127):
+                    result.returncode = code
+                    with self.assertRaisesRegex(RuntimeError, "ownership check failed"):
+                        panel.check_service_owner()
+            self.init_directory = "unknown"
+            with self.assertRaisesRegex(RuntimeError, "Unknown init"):
+                panel.check_service_owner()
+
+    def test_missing_openrc_service_still_requires_device_owner_check(self):
+        with patch.object(panel.Path, "is_dir", return_value=True), \
+                patch.object(panel.Path, "exists", return_value=False), \
+                patch.object(panel.subprocess, "run") as run:
+            panel.check_service_owner()
+            run.assert_not_called()
+        with tempfile.TemporaryFile() as lock, \
+                patch.object(panel.os, "open", return_value=panel.os.dup(lock.fileno())), \
+                patch.object(panel, "check_service_owner"), \
+                patch.object(panel.subprocess, "run", return_value=type("R", (), {"returncode": 2})()):
+            with self.assertRaisesRegex(RuntimeError, "ownership check failed"):
+                panel.acquire_panel_lock()
+
+    def test_fonts_use_complete_debian_or_alpine_pair(self):
+        from PIL import ImageFont
+        for root in ("/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/dejavu"):
+            with patch.object(panel.Path, "is_file", lambda path: str(path.parent) == root), \
+                    patch.object(ImageFont, "truetype") as font:
+                panel.PanelLCD(None, (4, 132), b"")
+                self.assertEqual(font.call_args_list[0].args,
+                                 (root + "/DejaVuSansMono-Bold.ttf", 16))
+                self.assertEqual(font.call_args_list[1].args,
+                                 (root + "/DejaVuSansMono.ttf", 13))
+        with patch.object(panel.Path, "is_file", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "fonts are required"):
+                panel.PanelLCD(None, (4, 132), b"")
+
     def test_second_owner_refused_before_gpio_is_opened(self):
         with tempfile.TemporaryFile() as lock:
             panel.fcntl.flock(lock.fileno(), panel.fcntl.LOCK_EX)

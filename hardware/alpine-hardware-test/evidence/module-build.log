@@ -1,0 +1,20 @@
+/usr/src/linux-headers-6.18.58-0-lts/.config: OK
+Kbuild: OK
+patches/0001-backport-it8613e-linux-6.12.107.patch: OK
+upstream/28e319062056586c255bac750eca2b595c19c31f.patch: OK
+upstream/600a85f556b783b5c619c4b6a576d5b2471be1ca.patch: OK
+upstream/ab003112b4948774057bde1c488b0bdbd96d687c.patch: OK
+upstream/linux-6.12.107-it87.c: OK
+upstream/linux-it8613e-upstream.c: OK
+patching file it87.c
+make: Entering directory '/usr/src/linux-headers-6.18.58-0-lts'
+make[1]: Entering directory '/work/artifacts/alpine-hardware/repro-one'
+  CC [M]  it87.o
+  MODPOST Module.symvers
+  CC [M]  it87.mod.o
+  CC [M]  .module-common.o
+  LD [M]  it87.ko
+  BTF [M] it87.ko
+Skipping BTF generation for it87.ko due to unavailability of vmlinux
+make[1]: Leaving directory '/work/artifacts/alpine-hardware/repro-one'
+make: Leaving directory '/usr/src/linux-headers-6.18.58-0-lts'
