@@ -1,0 +1,56 @@
+#!/bin/sh
+# Disk-system init: assemble ONLY the system RAID1 (explicit MD UUID) and boot its ext4 root.
+# Never --scan/--incremental; swap and data arrays are left alone.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+/bin/busybox --install -s
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /run /newroot
+mount -t tmpfs tmpfs /run
+exec </dev/console >/dev/console 2>&1
+
+rescue() {
+    echo "TENERIX_RECOVERY: $*; nothing else activated; serial shell (reboot and type 'dom' at boot: for the DOM system)"
+    while :; do /bin/sh -i; done
+}
+. /etc/tenerix/md.conf || rescue 'missing embedded policy'
+echo "TENERIX_INIT disk build=$BUILD_ID system_md=$SYSTEM_MD_UUID"
+for module in ahci sd_mod raid1 ext4; do
+    modprobe "$module" || rescue "required module failed: $module"
+done
+# Members: partitions whose MD superblock carries exactly the system UUID and level raid1.
+count=0
+while :; do
+    members=
+    found=0
+    for part in /sys/class/block/sd*; do
+        [ -f "$part/partition" ] || continue
+        dev=/dev/${part##*/}
+        meta=$(mdadm --examine --export "$dev" 2>/dev/null) || continue
+        echo "$meta" | grep -qx "MD_UUID=$SYSTEM_MD_UUID" || continue
+        echo "$meta" | grep -qx 'MD_LEVEL=raid1' || rescue "$dev has the system UUID but is not raid1"
+        members="$members $dev"
+        found=$((found + 1))
+    done
+    [ "$found" -ge "$EXPECTED_MEMBERS" ] && break
+    count=$((count + 1))
+    if [ "$count" -ge 45 ]; then
+        [ "$found" -ge 2 ] && { echo "TENERIX_WARNING: only $found of $EXPECTED_MEMBERS system members"; break; }
+        rescue "found $found system members"
+    fi
+    sleep 1
+done
+[ -b /dev/md0 ] || mknod /dev/md0 b 9 0
+mdadm --assemble /dev/md0 --uuid="$SYSTEM_MD_UUID" --run $members || rescue 'system array assembly failed'
+[ "$(cat /sys/class/block/md0/md/level)" = raid1 ] || rescue 'assembled level mismatch'
+[ "$(blkid -s UUID -o value /dev/md0)" = "$ROOT_FS_UUID" ] || rescue 'root filesystem UUID mismatch'
+mount -t ext4 -o rw,noatime /dev/md0 /newroot || rescue 'root mount failed'
+[ "$(cat /newroot/etc/tenerix/root-fs-uuid 2>/dev/null)" = "$ROOT_FS_UUID" ] || rescue 'root identity marker mismatch'
+mkdir -p /newroot/run
+mount --move /run /newroot/run
+printf 'disk\n' > /newroot/run/tenerix-generation
+printf '%s\n' "$BUILD_ID" > /newroot/run/tenerix-build
+for point in dev proc sys; do mount --move "/$point" "/newroot/$point" || rescue 'mount transfer failed'; done
+echo "TENERIX_SWITCH_ROOT disk build=$BUILD_ID device=/dev/md0 fs=ext4 members=$found"
+exec switch_root /newroot /sbin/init

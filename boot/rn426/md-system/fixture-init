@@ -1,0 +1,26 @@
+#!/bin/sh
+# QEMU-only: build six disposable disks like the RN426 (system RAID1, swap RAID10, data RAID5),
+# make the ext4 root and extract the disk system into it. Never part of any boot image.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+/bin/busybox --install -s
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+exec </dev/console >/dev/console 2>&1
+fail() { echo "FIXTURE_FAILED: $*"; while :; do sleep 3600; done; }
+case "$(cat /sys/class/dmi/id/sys_vendor)" in QEMU|Bochs) ;; *) fail 'QEMU DMI required' ;; esac
+for m in virtio_pci virtio_blk raid1 raid10 raid456 ext4 9p 9pnet_virtio; do modprobe "$m" || fail "$m"; done
+mkdir -p /input /target
+mount -t 9p -o trans=virtio,version=9p2000.L,ro input /input || fail 'input share'
+. /input/fixture.conf
+for l in a b c d e f; do [ "$(cat /sys/class/block/vd$l/serial)" = "TENERIX-MDTEST-$l" ] || fail "disk vd$l identity"; done
+mdadm --create /dev/md0 --metadata=1.2 --level=1 --raid-devices=6 --assume-clean --run --uuid="$SYSTEM_MD_UUID" /dev/vd[a-f]1 || fail 'system'
+mdadm --create /dev/md1 --metadata=1.2 --level=10 --raid-devices=6 --assume-clean --run --uuid="$SWAP_MD_UUID" /dev/vd[a-f]2 || fail 'swap decoy'
+mdadm --create /dev/md2 --metadata=1.2 --level=5 --raid-devices=6 --assume-clean --run --uuid="$DATA_MD_UUID" /dev/vd[a-f]3 || fail 'data decoy'
+mke2fs -t ext4 -F -L tenerix-root -U "$ROOT_FS_UUID" /dev/md0 || fail 'mkfs'
+mount -t ext4 /dev/md0 /target || fail 'mount'
+tar -xzpf /input/tenerix-md-root.tar.gz -C /target || fail 'extract'
+sync; umount /target || fail 'umount'
+mdadm --stop /dev/md2 /dev/md1 /dev/md0 || fail 'stop'
+echo FIXTURE_CREATED_CLEAN
+poweroff -f

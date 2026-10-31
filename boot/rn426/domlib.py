@@ -45,8 +45,8 @@ def checked_image(path):
     info = os.lstat(path)
     if not stat.S_ISREG(info.st_mode) or info.st_size != DOM_BYTES:
         raise SystemExit(f'{path}: not a regular {DOM_BYTES}-byte DOM image file')
-    if not any(path.resolve().is_relative_to(d.resolve()) for d in (OUT, ROOT / 'artifacts/dom-system')):
-        raise SystemExit(f'{path}: DOM image must reside below {OUT} or artifacts/dom-system')
+    if not any(path.resolve().is_relative_to(d.resolve()) for d in (OUT, ROOT / 'artifacts/dom-system', ROOT / 'artifacts/md-system')):
+        raise SystemExit(f'{path}: DOM image must reside below {OUT}, artifacts/dom-system or artifacts/md-system')
     return path
 
 
