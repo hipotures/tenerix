@@ -1,0 +1,52 @@
+#!/bin/sh
+# DOM-only system: root is an ext4 file on the DOM's own FAT partition. No disk is touched.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+/bin/busybox --install -s
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /run /newroot /dom
+mount -t tmpfs tmpfs /run
+exec </dev/console >/dev/console 2>&1
+
+rescue() {
+    echo "TENERIX_RECOVERY: $*; serial shell"
+    while :; do /bin/sh -i; done
+}
+. /etc/tenerix/dom.conf || rescue 'missing embedded policy'
+slot=
+for word in $(cat /proc/cmdline); do
+    case "$word" in tenerix.slot=*) slot=${word#tenerix.slot=} ;; esac
+done
+case "$slot" in g0|g1) ;; *) rescue "invalid or missing tenerix.slot=$slot" ;; esac
+echo "TENERIX_INIT slot=$slot build=$BUILD_ID dom=$DOM_PARTUUID"
+for module in xhci_pci ehci_pci usb_storage uas sd_mod vfat nls_cp437 nls_iso8859_1 nls_utf8 loop ext4; do
+    modprobe "$module" || rescue "required module failed: $module"
+done
+# The DOM's FAT partition is found by its MBR PARTUUID (kernel uevent data); HDDs are GPT.
+count=0
+dom=
+while [ "$count" -lt 30 ]; do
+    for event in /sys/class/block/*/uevent; do
+        grep -q "^PARTUUID=$DOM_PARTUUID$" "$event" || continue
+        [ -z "$dom" ] || rescue 'duplicate DOM PARTUUID: remove the cloned USB device'
+        name=${event%/uevent}; dom=/dev/${name##*/}
+    done
+    [ -n "$dom" ] && break
+    count=$((count + 1)); sleep 1
+done
+[ -n "$dom" ] || rescue 'DOM partition not found'
+mount -t vfat -o rw,noatime "$dom" /dom || rescue 'DOM FAT mount failed'
+[ -f "/dom/$ROOT_IMAGE" ] || rescue "missing /$ROOT_IMAGE"
+losetup /dev/loop0 "/dom/$ROOT_IMAGE" || rescue 'loop setup failed'
+[ "$(blkid -s UUID -o value /dev/loop0)" = "$ROOT_FS_UUID" ] || rescue 'root filesystem UUID mismatch'
+mount -t ext4 -o rw,noatime /dev/loop0 /newroot || rescue 'root mount failed'
+[ "$(cat /newroot/etc/tenerix/root-fs-uuid)" = "$ROOT_FS_UUID" ] || rescue 'root identity marker mismatch'
+mkdir -p /newroot/media/dom /newroot/run
+mount --move /dom /newroot/media/dom || rescue 'DOM mount transfer failed'
+mount --move /run /newroot/run
+printf '%s\n' "$slot" > /newroot/run/tenerix-generation
+printf '%s\n' "$BUILD_ID" > /newroot/run/tenerix-build
+for point in dev proc sys; do mount --move "/$point" "/newroot/$point" || rescue 'mount transfer failed'; done
+echo "TENERIX_SWITCH_ROOT generation=$slot build=$BUILD_ID device=/dev/loop0 fs=ext4"
+exec switch_root /newroot /sbin/init

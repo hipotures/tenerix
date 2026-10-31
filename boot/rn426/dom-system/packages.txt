@@ -1,0 +1,14 @@
+# Alpine v3.24 x86_64 runtime for the self-contained DOM system. Kernel: retained signed
+# linux-lts-6.18.58-r0.apk, pruned to the modules listed in build.py.
+alpine-base=3.24.3-r0
+openrc=0.63.2-r0
+openssh=10.3_p1-r1
+openssh-server-common-openrc=10.3_p1-r1
+mdadm=4.3-r3
+cryptsetup=2.8.6-r0
+btrfs-progs=6.17.1-r1
+e2fsprogs=1.47.4-r0
+smartmontools=7.5-r0
+blkid=2.42.3-r1
+linux-firmware-none
+intel-ucode=20260812-r0
