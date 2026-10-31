@@ -22,7 +22,10 @@ from domlib import Fat, run, sha256, write_generation  # noqa: E402
 
 ROOT = Path('/work')
 OUT = ROOT / 'artifacts/dom-system'
-BUILD = OUT / 'build'
+PENDRIVE = '--pendrive' in sys.argv
+# Pendrive variant: same system, own MBR signature, so it never collides with the DOM.
+PENDRIVE_SIGNATURE = 0x7E4E1A26
+BUILD = OUT / ('build-pendrive' if PENDRIVE else 'build')
 ORIGINAL = ROOT / 'artifacts/dom/readynas-rn426-original-240m.img'
 ORIGINAL_SHA = '40056ae60cf7bbae0b7945797066db7ae7665fb5da1f62e009ae4d0f1355dea7'
 KERNEL_APK = ROOT / 'artifacts/alpine-hardware/packages/linux-lts-6.18.58-r0.apk'
@@ -145,6 +148,7 @@ def main():
     assert sha256(ORIGINAL) == ORIGINAL_SHA, 'factory DOM image hash mismatch'
     signature = int.from_bytes(ORIGINAL.read_bytes()[440:444], 'little')
     assert DOM_PARTUUID == f'{signature:08x}-01', 'DOM_PARTUUID does not match the factory MBR'
+    boot_partuuid = f'{PENDRIVE_SIGNATURE:08x}-01' if PENDRIVE else DOM_PARTUUID
     assert sha256(IT87) == IT87_SHA, 'it87.ko hash mismatch'
     keys = (OUT / 'authorized_keys').read_text()
     assert keys.count('sk-ssh-ed25519@openssh.com') == 3
@@ -172,7 +176,11 @@ def main():
     run('depmod', '-b', root, KVER)
     (BUILD / 'modules.txt').write_text('\n'.join(sorted(keep)) + '\n\nbuilt-in or absent: ' + ' '.join(missing) + '\n')
 
-    password = secrets.token_urlsafe(12)
+    # One root password for every variant; generated once, kept outside Git.
+    if (OUT / 'root-password').exists():
+        password = (OUT / 'root-password').read_text().strip()
+    else:
+        password = secrets.token_urlsafe(12)
     password_hash = subprocess.check_output(['cryptpw', '-m', 'sha512', password], text=True).strip()
     configure(root, password_hash, keys)
     root_uuid = str(uuid.uuid5(NS, 'root-' + BUILD_ID))
@@ -187,7 +195,7 @@ def main():
 
     # Initramfs: only what is needed to mount the DOM FAT and the loop root.
     (root / 'etc/tenerix/dom.conf').write_text(
-        f"DOM_PARTUUID='{DOM_PARTUUID}'\nROOT_IMAGE='{ROOT_IMAGE}'\nROOT_FS_UUID='{root_uuid}'\nBUILD_ID='{BUILD_ID}'\n")
+        f"DOM_PARTUUID='{boot_partuuid}'\nROOT_IMAGE='{ROOT_IMAGE}'\nROOT_FS_UUID='{root_uuid}'\nBUILD_ID='{BUILD_ID}'\n")
     features = BUILD / 'features'
     features.mkdir()
     (features / 'domsys.files').write_text('/bin/busybox\n/bin/sh\n/sbin/modprobe\n/sbin/blkid\n/etc/tenerix/dom.conf\n')
@@ -219,9 +227,13 @@ def main():
     used = subprocess.check_output(['du', '-sm', str(root)], text=True).split()[0]
 
     # DOM image derived from the verified original.
-    dom = OUT / 'tenerix-rn426-dom-system.img'
+    dom = OUT / ('tenerix-rn426-pendrive.img' if PENDRIVE else 'tenerix-rn426-dom-system.img')
     dom.unlink(missing_ok=True)
     shutil.copyfile(ORIGINAL, dom)
+    if PENDRIVE:
+        with dom.open('r+b') as f:
+            f.seek(440)
+            f.write(PENDRIVE_SIGNATURE.to_bytes(4, 'little'))
     fat = Fat(dom)
     for name in ('KERNEL', 'INITRD.GZ', 'KERNEL.EMG', 'INITRD.EMG', 'ROOT.TLZ', 'CSUMS.MD5', 'SYSLINUX.CFG'):
         fat.delete(name)
@@ -247,7 +259,8 @@ def main():
     fat.put_bytes(config.encode(), 'SYSLINUX.CFG')
     free = fat.free_bytes()
     a, b = ORIGINAL.read_bytes(), dom.read_bytes()
-    assert len(a) == len(b) and a[:16896] == b[:16896], 'MBR/gap/VBR changed'
+    assert len(a) == len(b) and a[:440] + a[444:16896] == b[:440] + b[444:16896], 'MBR/gap/VBR changed'
+    assert int.from_bytes(b[440:444], 'little') == int(boot_partuuid[:8], 16)
     assert a[458752 * 512:] == b[458752 * 512:], 'trailing sectors changed'
     for name in ('ldlinux.sys', 'ldlinux.c32'):
         assert Fat(ORIGINAL).read(name) == fat.read(name)
@@ -260,7 +273,7 @@ def main():
               'kernel': KVER, 'root_fs_uuid': root_uuid, 'root_image_mib': ROOT_IMAGE_MIB,
               'rootfs_used_mib': int(used), 'fat_free_bytes': free, 'microcode_bytes': ucode_bytes,
               'kept_modules': len(keep), 'it87_sha256': IT87_SHA}
-    (OUT / 'build.json').write_text(json.dumps(report, indent=2) + '\n')
+    (OUT / ('build-pendrive.json' if PENDRIVE else 'build.json')).write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
     print('DOM_SYSTEM_BUILD_COMPLETE', flush=True)
 

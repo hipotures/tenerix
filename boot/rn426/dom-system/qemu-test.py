@@ -12,13 +12,16 @@ import secrets
 import shutil
 import socket
 import subprocess
+import sys
 import time
 
 import pexpect
 
 OUT = Path('/work/artifacts/dom-system')
-IMAGE = OUT / 'tenerix-rn426-dom-system.img'
+PENDRIVE = '--pendrive' in sys.argv
+IMAGE = OUT / ('tenerix-rn426-pendrive.img' if PENDRIVE else 'tenerix-rn426-dom-system.img')
 COPY = OUT / 'test-copy.img'
+NAME = 'qemu-test-pendrive' if PENDRIVE else 'qemu-test'
 PROMPT = r'tenerix-zero:[^\r\n]*# '
 
 
@@ -57,7 +60,7 @@ def main():
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
     result = {'image': IMAGE.name, 'passed': False}
-    with (OUT / 'qemu-test.log').open('w') as log:
+    with (OUT / f'{NAME}.log').open('w') as log:
         guest = spawn(port, log)
         try:
             guest.expect('SYSLINUX 6.03')
@@ -125,7 +128,7 @@ def main():
         finally:
             if guest.isalive():
                 guest.close(force=True)
-            (OUT / 'qemu-test.json').write_text(json.dumps(result, indent=2) + '\n')
+            (OUT / f'{NAME}.json').write_text(json.dumps(result, indent=2) + '\n')
             print(json.dumps(result, indent=2), flush=True)
 
 
