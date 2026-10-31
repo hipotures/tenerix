@@ -107,7 +107,7 @@ mv -f "$DOM/k/$new/vmlinuz.new" "$DOM/k/$new/vmlinuz"
 mv -f "$DOM/k/$new/initramfs.new" "$DOM/k/$new/initramfs"
 sync
 
-# 4. boot menu: only the disk entries change; dom, dom-previous and recovery are kept as they are.
+# 4. boot menu: only the disk entries change; recovery (and dom entries, if present) are kept.
 {
     printf 'SERIAL 0 115200 0\nCONSOLE 1\nPROMPT 1\nTIMEOUT 30\nTOTALTIMEOUT 30\n'
     printf 'DEFAULT disk\nONTIMEOUT disk\nONERROR disk-previous\n'
@@ -117,7 +117,7 @@ sync
     awk -v g0="$([ -d "$DOM/g0" ] && echo yes)" \
         '$1=="LABEL"{on=($2=="dom"||($2=="dom-previous"&&g0=="yes")||$2=="recovery")} on' "$DOM/SYSLINUX.CFG"
 } > "$tmp/SYSLINUX.CFG"
-grep -q '^LABEL dom$' "$tmp/SYSLINUX.CFG" && grep -q '^LABEL recovery$' "$tmp/SYSLINUX.CFG" || die 'dom/recovery entries missing'
+grep -q '^LABEL recovery$' "$tmp/SYSLINUX.CFG" || die 'recovery entry missing'
 cp "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW"
 sync
 cmp -s "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW" || die 'boot menu read-back mismatch'
