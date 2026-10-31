@@ -1,0 +1,23 @@
+#!/bin/sh
+# apk commit hook: keep the running kernel's modules after linux-lts is upgraded, then put the
+# new kernel on the DOM (tenerix-kernel-update). Does not call apk (the database is locked here).
+cur=$(uname -r)
+snap=/var/lib/tenerix/modules/$cur
+case "$1" in
+pre-commit)
+    if [ -d "/lib/modules/$cur/kernel" ] && [ ! -d "$snap/kernel" ]; then
+        mkdir -p "$snap" && cp -a "/lib/modules/$cur/." "$snap/"
+    fi
+    ;;
+post-commit)
+    # apk removes the old kernel's modules; restore them so the running system (and the
+    # disk-previous boot entry) keeps network, sensors and filesystems.
+    if [ ! -d "/lib/modules/$cur/kernel" ] && [ -d "$snap/kernel" ]; then
+        mkdir -p "/lib/modules/$cur" && cp -a "$snap/." "/lib/modules/$cur/"
+    fi
+    [ -f /usr/share/kernel/lts/kernel.release ] || exit 0
+    /usr/local/sbin/tenerix-kernel-update || echo 'WARNING: tenerix-kernel-update failed; the DOM still boots the old kernel'
+
+    ;;
+esac
+exit 0

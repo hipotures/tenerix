@@ -86,7 +86,7 @@ def fixture():
     fat.put(TEST / 'boot/SYSLINUX.CFG', 'SYSLINUX.CFG')
 
 
-def spawn(port, log):
+def spawn(port, log, internet=False):
     cmd = ['qemu-system-x86_64', '-machine', 'pc,accel=tcg', '-cpu', 'max', '-smp', '2', '-m', '2048',
            '-display', 'none', '-serial', 'stdio', '-monitor', 'none',
            '-device', 'qemu-xhci,id=xhci', '-drive', f'if=none,format=raw,id=dom,file={TEST / "dom.img"}',
@@ -95,7 +95,10 @@ def spawn(port, log):
         cmd += ['-drive', f'if=none,format=raw,id=d{i},file={disk}', '-device', f'ide-hd,drive=d{i},bus=ahci.{i}']
     for i, mac in enumerate(['52:54:00:42:60:01', '52:54:00:42:60:02', '52:54:00:42:60:03', 'b0:b9:8a:45:13:fb']):
         forward = f',hostfwd=tcp:127.0.0.1:{port}-:22' if i == 3 else ''
-        cmd += ['-netdev', f'user,id=n{i},restrict=on{forward}', '-device', f'e1000,netdev=n{i},mac={mac}']
+        restrict = 'off' if internet and i == 3 else 'on'
+        cmd += ['-netdev', f'user,id=n{i},restrict={restrict}{forward}', '-device', f'e1000,netdev=n{i},mac={mac}']
+    if internet:
+        cmd += ['-virtfs', f'local,path={OUT},mount_tag=input,security_model=none,readonly=on']
     guest = pexpect.spawn(cmd[0], cmd[1:], encoding='utf-8', codec_errors='replace', timeout=300, echo=False)
     guest.logfile_read = log
     return guest
@@ -171,5 +174,68 @@ def boot():
             print(json.dumps(result, indent=2), flush=True)
 
 
+def upgrade():
+    """The NAS procedure: install the kernel-update package, apk add the current kernel, reboot."""
+    password = (DOMSYS / 'root-password').read_text().strip()
+    with socket.socket() as s:
+        s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
+    result = {'passed': False}
+    with (TEST / 'upgrade.log').open('w') as log:
+        guest = spawn(port, log, internet=True)
+        try:
+            guest.expect('TENERIX_SWITCH_ROOT disk')
+            login(guest, password)
+            out = marker(guest, 'modprobe -a virtio_pci 9pnet_virtio 9p; mkdir -p /mnt/in && mount -t 9p -o trans=virtio,version=9p2000.L,ro input /mnt/in '
+                         '&& tar -xf /mnt/in/tenerix-kernel-update.tar -C / && umount /mnt/in && uname -r', 'COPY_DONE')
+            assert '6.18.58-0-lts' in out
+            guest.send("apk add -u linux-lts linux-lts-dev build-base mkinitfs 2>&1 | tail -25; "
+                       "printf '%s_DONE\\n' APK\r")
+            guest.expect(r'\nAPK_DONE\r*\n', timeout=2400)
+            out = guest.before.replace('\r', '')
+            assert 'DOM now boots 6.18.59-0-lts by default' in out, 'update hook did not finish'
+            result['hook_output'] = [l for l in out.splitlines() if 'tenerix-kernel' in l]
+            guest.expect(PROMPT)
+            out = marker(guest, 'cat /media/dom/SYSLINUX.CFG; ls /lib/modules; modinfo -n it87; '
+                         'modinfo -F vermagic /lib/modules/6.18.59-0-lts/updates/it87.ko; lsmod | grep -c e1000', 'CHECK_DONE')
+            assert 'LINUX /k/6.18.59-0-lts/vmlinuz' in out and 'LABEL disk-previous' in out
+            assert 'LINUX /g1/vmlinuz-6.18.58-0-lts' in out and 'LABEL dom' in out and 'LABEL recovery' in out
+            assert '6.18.58-0-lts/updates/it87.ko' in out, 'running kernel lost its it87'
+            assert re.search(r'^6\.18\.59-0-lts SMP', out, re.M), 'it87 not built for 6.18.59'
+            result['dom_updated'] = True
+            guest.expect(PROMPT)
+            guest.send('reboot\r')
+            guest.expect('TENERIX_SWITCH_ROOT disk', timeout=300)
+            login(guest, password)
+            out = marker(guest, 'uname -r; modinfo -n it87; ip -4 -o addr; rc-status | grep -E "sshd|networking"', 'NEW_DONE')
+            assert '\n6.18.59-0-lts\n' in out and '6.18.59-0-lts/updates/it87.ko' in out
+            assert re.search(r'eth3\s+inet 10\.0\.2\.15/', out) and re.search(r'sshd\s+\[\s*started', out)
+            result['new_kernel_boot'] = True
+            guest.expect(PROMPT)
+            guest.send('poweroff\r')
+            guest.expect(pexpect.EOF, timeout=180)
+            guest.close()
+            log.write('\n=== TENERIX TEST: cold boot, select disk-previous ===\n')
+            guest = spawn(port, log)
+            guest.expect('boot:')
+            guest.send('disk-previous\r')
+            guest.expect('TENERIX_SWITCH_ROOT disk')
+            login(guest, password)
+            out = marker(guest, 'uname -r; ip -4 -o addr; modinfo -n it87', 'OLD_DONE')
+            assert '\n6.18.58-0-lts\n' in out and re.search(r'eth3\s+inet 10\.0\.2\.15/', out)
+            assert '6.18.58-0-lts/updates/it87.ko' in out
+            result['previous_kernel_boot'] = True
+            guest.send('poweroff\r')
+            guest.expect(pexpect.EOF, timeout=180)
+            result['passed'] = True
+        except BaseException as error:
+            result['error'] = str(error)[:1500]
+            raise
+        finally:
+            if guest.isalive():
+                guest.close(force=True)
+            (TEST / 'upgrade.json').write_text(json.dumps(result, indent=2) + '\n')
+            print(json.dumps(result, indent=2), flush=True)
+
+
 if __name__ == '__main__':
-    fixture() if sys.argv[1:] == ['fixture'] else boot()
+    {'fixture': fixture, 'upgrade': upgrade}.get(sys.argv[1] if len(sys.argv) > 1 else '', boot)()

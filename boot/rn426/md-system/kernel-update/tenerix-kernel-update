@@ -1,0 +1,126 @@
+#!/bin/sh
+# tenerix-kernel-update: make the installed linux-lts kernel the default DOM boot entry "disk".
+#  1. build the IT8613E it87 module for it (source: /usr/src/tenerix-it87)
+#  2. build the system-mirror initramfs (/etc/tenerix/initramfs)
+#  3. copy kernel + initramfs to the DOM (/k/<release>/), verify by read-back
+#  4. rewrite SYSLINUX.CFG: disk = new kernel, disk-previous = the kernel "disk" used before
+# Run automatically by /etc/apk/commit_hooks.d/tenerix-kernel.hook; safe to run again by hand.
+set -eu
+DOM_PARTUUID=fd8988d9-01
+DOM=/media/dom
+UCODE=/g1/ucode-c3538.cpio
+APPEND='console=tty0 console=ttyS0,115200n8 panic=0 raid=noautodetect'
+log() { echo "tenerix-kernel-update: $*"; logger -t tenerix-kernel-update "$*" 2>/dev/null || true; }
+die() { log "ERROR: $*"; exit 1; }
+
+new=$(cat /usr/share/kernel/lts/kernel.release 2>/dev/null) || die 'linux-lts is not installed'
+[ -f /boot/vmlinuz-lts ] || die '/boot/vmlinuz-lts missing'
+[ -d "/lib/modules/$new/kernel" ] || die "modules for $new missing"
+[ -d "/usr/src/linux-headers-$new" ] || die "linux-lts-dev for $new missing (apk add linux-lts-dev)"
+
+# DOM: mount its FAT partition (identified by PARTUUID) if needed.
+if ! grep -q " $DOM vfat " /proc/mounts; then
+    # The disk system has no hotplug: load the USB storage and FAT drivers explicitly.
+    modprobe -a xhci_pci ehci_pci usb_storage uas sd_mod vfat nls_cp437 nls_iso8859_1 nls_utf8 2>/dev/null || true
+    dev=
+    tries=0
+    while [ -z "$dev" ] && [ "$tries" -lt 20 ]; do
+        for event in /sys/class/block/*/uevent; do
+            grep -q "^PARTUUID=$DOM_PARTUUID$" "$event" || continue
+            [ -z "$dev" ] || die 'two devices carry the DOM PARTUUID'
+            name=${event%/uevent}; dev=/dev/${name##*/}
+        done
+        [ -n "$dev" ] || { tries=$((tries + 1)); sleep 1; }
+    done
+    [ -n "$dev" ] || die 'DOM partition not found'
+    mkdir -p "$DOM"
+    mount -t vfat -o rw,noatime "$dev" "$DOM" || die 'DOM mount failed'
+fi
+if grep -q "^  LINUX /k/$new/vmlinuz$" "$DOM/SYSLINUX.CFG" 2>/dev/null \
+   && [ -f "$DOM/k/$new/vmlinuz" ] && [ -f "$DOM/k/$new/initramfs" ]; then
+    log "DOM already boots $new; nothing to do"
+    exit 0
+fi
+
+# 1. it87 for the new kernel
+it87=/lib/modules/$new/updates/it87.ko
+if [ "$(modinfo -F vermagic "$it87" 2>/dev/null | cut -d' ' -f1)" != "$new" ]; then
+    log "building it87 for $new"
+    work=$(mktemp -d)
+    cp /usr/src/tenerix-it87/it87.c /usr/src/tenerix-it87/Kbuild "$work/"
+    make -s -C "/usr/src/linux-headers-$new" M="$work" modules >"$work/build.log" 2>&1 \
+        || { tail -20 "$work/build.log"; die 'it87 build failed'; }
+    install -D -m 644 "$work/it87.ko" "$it87"
+    rm -rf "$work"
+fi
+depmod "$new"
+
+# 2. initramfs that assembles only the system mirror
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkinitfs -q -P /etc/tenerix/initramfs -F mdroot -i /etc/tenerix/initramfs/init -o "$tmp/initramfs" "$new" \
+    || die 'mkinitfs failed'
+listing=$(gzip -dc "$tmp/initramfs" | cpio -it 2>/dev/null)
+for need in raid1.ko ahci.ko sd_mod.ko ext4.ko sbin/mdadm etc/tenerix/md.conf; do
+    echo "$listing" | grep -q "$need" || die "initramfs lacks $need"
+done
+
+# 3. DOM (mounted at the start)
+[ -f "$DOM/SYSLINUX.CFG" ] && [ -f "$DOM$UCODE" ] || die 'DOM does not look like the Tenerix DOM'
+# The kernel "disk" boots now becomes "disk-previous".
+block() { awk -v l="$1" '$1=="LABEL"{on=($2==l)} on&&$1==k{print $2}' k="$2" "$DOM/SYSLINUX.CFG"; }
+prev_kernel=$(block disk LINUX)
+prev_initrd=$(block disk INITRD | sed "s|^$UCODE,||")
+[ -n "$prev_kernel" ] && [ -n "$prev_initrd" ] || die 'cannot read the current disk entry'
+if [ "$prev_kernel" = "/k/$new/vmlinuz" ]; then
+    prev_kernel=$(block disk-previous LINUX)
+    prev_initrd=$(block disk-previous INITRD | sed "s|^$UCODE,||")
+fi
+need=$(( ($(stat -c %s /boot/vmlinuz-lts) + $(stat -c %s "$tmp/initramfs")) / 1024 + 4096 ))
+keep_dir=$(dirname "$prev_kernel")
+for old in "$DOM"/k/*; do
+    [ -d "$old" ] || continue
+    case "/k/${old##*/}" in "/k/$new"|"$keep_dir") ;; *)
+        [ "$(df -k "$DOM" | awk 'NR==2{print $4}')" -ge "$need" ] && break
+        log "removing old DOM kernel ${old##*/}"; rm -rf "$old" ;;
+    esac
+done
+if [ "$(df -k "$DOM" | awk 'NR==2{print $4}')" -lt "$need" ] && [ -d "$DOM/g0" ]; then
+    # dom-previous (g0) is a byte-identical duplicate of the DOM system slot g1.
+    log 'removing duplicate DOM slot g0 (dom-previous) to make room'
+    rm -rf "$DOM/g0"
+fi
+if [ "$(df -k "$DOM" | awk 'NR==2{print $4}')" -lt "$need" ] && [ -d "$DOM/md" ] \
+   && [ "$prev_initrd" != "/md/initramfs-6.18.58-0-lts" ]; then
+    log 'removing unused initial disk initramfs /md'
+    rm -rf "$DOM/md"
+fi
+[ "$(df -k "$DOM" | awk 'NR==2{print $4}')" -ge "$need" ] || die 'not enough space on the DOM'
+mkdir -p "$DOM/k/$new"
+cp /boot/vmlinuz-lts "$DOM/k/$new/vmlinuz.new"
+cp "$tmp/initramfs" "$DOM/k/$new/initramfs.new"
+sync
+echo 3 > /proc/sys/vm/drop_caches
+[ "$(sha256sum < /boot/vmlinuz-lts)" = "$(sha256sum < "$DOM/k/$new/vmlinuz.new")" ] || die 'kernel read-back mismatch'
+[ "$(sha256sum < "$tmp/initramfs")" = "$(sha256sum < "$DOM/k/$new/initramfs.new")" ] || die 'initramfs read-back mismatch'
+mv -f "$DOM/k/$new/vmlinuz.new" "$DOM/k/$new/vmlinuz"
+mv -f "$DOM/k/$new/initramfs.new" "$DOM/k/$new/initramfs"
+sync
+
+# 4. boot menu: only the disk entries change; dom, dom-previous and recovery are kept as they are.
+{
+    printf 'SERIAL 0 115200 0\nCONSOLE 1\nPROMPT 1\nTIMEOUT 30\nTOTALTIMEOUT 30\n'
+    printf 'DEFAULT disk\nONTIMEOUT disk\nONERROR disk-previous\n'
+    printf 'SAY Tenerix Zero RN426: disk (%s) / disk-previous / dom / dom-previous / recovery\n' "$new"
+    printf 'LABEL disk\n  LINUX /k/%s/vmlinuz\n  INITRD %s,/k/%s/initramfs\n  APPEND %s\n' "$new" "$UCODE" "$new" "$APPEND"
+    printf 'LABEL disk-previous\n  LINUX %s\n  INITRD %s,%s\n  APPEND %s\n' "$prev_kernel" "$UCODE" "$prev_initrd" "$APPEND"
+    awk -v g0="$([ -d "$DOM/g0" ] && echo yes)" \
+        '$1=="LABEL"{on=($2=="dom"||($2=="dom-previous"&&g0=="yes")||$2=="recovery")} on' "$DOM/SYSLINUX.CFG"
+} > "$tmp/SYSLINUX.CFG"
+grep -q '^LABEL dom$' "$tmp/SYSLINUX.CFG" && grep -q '^LABEL recovery$' "$tmp/SYSLINUX.CFG" || die 'dom/recovery entries missing'
+cp "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW"
+sync
+cmp -s "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW" || die 'boot menu read-back mismatch'
+mv -f "$DOM/SYSLINUX.NEW" "$DOM/SYSLINUX.CFG"
+sync
+log "DOM now boots $new by default (disk-previous: $prev_kernel); reboot to use it"

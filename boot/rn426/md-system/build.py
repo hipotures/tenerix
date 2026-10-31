@@ -21,6 +21,7 @@ OUT = ROOT / 'artifacts/md-system'
 BUILD = OUT / 'build'
 BASE = ROOT / 'artifacts/dom-system/build/rootfs'
 FULL_MODULES = ROOT / 'artifacts/dom/build/rootfs/lib/modules'
+IT87_SRC = ROOT / 'artifacts/alpine-hardware/repro-one'   # patched IT8613E it87.c + Kbuild
 KVER = '6.18.58-0-lts'
 SYSTEM_MD_UUID = '58b7f1b0:9d294f2c:2bd63fbf:960d5376'
 ROOT_FS_UUID = '25e85b7f-ffee-4088-86fc-a2f946fafb6a'
@@ -80,6 +81,9 @@ def main():
     write(root, '/etc/apk/repositories', 'https://dl-cdn.alpinelinux.org/alpine/v3.24/main\n'
           'https://dl-cdn.alpinelinux.org/alpine/v3.24/community\n')
     write(root, '/etc/mdadm.conf', 'AUTO -all\n')
+    # No hotplug on the disk system: USB host/storage so the DOM and USB keyboards are visible.
+    modules_list = (root / 'etc/modules').read_text()
+    write(root, '/etc/modules', modules_list + 'xhci_pci\nehci_pci\nusb_storage\nusbhid\nhid_generic\n')
     (root / 'media/dom').mkdir(parents=True, exist_ok=True)
 
     # Initramfs that assembles only the system mirror.
@@ -100,6 +104,24 @@ def main():
     assert 'raid1.ko' in listing and 'ahci.ko' in listing and 'raid456' not in listing and 'raid10' not in listing
     (boot / 'md' / 'SHA256SUMS').write_text(f"{sha256(boot / 'md' / f'initramfs-{KVER}')}  initramfs-{KVER}\n")
     (boot / 'SYSLINUX.CFG').write_text(SYSLINUX)
+
+    # Kernel updates: it87 source, initramfs definition, update script and apk commit hook.
+    upd = BUILD / 'kernel-update'
+    files = {
+        'usr/local/sbin/tenerix-kernel-update': (HERE / 'kernel-update/tenerix-kernel-update', 0o755),
+        'etc/apk/commit_hooks.d/tenerix-kernel.hook': (HERE / 'kernel-update/tenerix-kernel.hook', 0o755),
+        'etc/tenerix/initramfs/init': (HERE / 'init', 0o755),
+        'etc/tenerix/initramfs/mdroot.files': (features / 'mdroot.files', 0o644),
+        'etc/tenerix/initramfs/mdroot.modules': (features / 'mdroot.modules', 0o644),
+        'usr/src/tenerix-it87/it87.c': (IT87_SRC / 'it87.c', 0o644),
+        'usr/src/tenerix-it87/Kbuild': (IT87_SRC / 'Kbuild', 0o644),
+    }
+    for target, (source, mode) in files.items():
+        for base in (root, upd):
+            (base / target).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, base / target)
+            (base / target).chmod(mode)
+    run('tar', '--owner=0', '--group=0', '-cf', OUT / 'tenerix-kernel-update.tar', '-C', upd, '.')
 
     tarball = OUT / 'tenerix-md-root.tar.gz'
     run('tar', '--numeric-owner', '-czpf', tarball, '-C', root, '.')

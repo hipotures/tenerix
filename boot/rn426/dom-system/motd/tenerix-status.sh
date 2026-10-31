@@ -29,7 +29,7 @@ _tx_ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '{printf "%s %s  ", $
 _tx_up=$(awk '{d=int($1/86400); h=int($1%86400/3600); m=int($1%3600/60); printf "%dd %dh %dm", d, h, m}' /proc/uptime)
 _tx_mem=$(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf "%d / %d MiB", (t-a)/1024, t/1024}' /proc/meminfo)
 _tx_root=$(df -h / | awk 'NR==2{print $3 " / " $2 " (" $5 ")"}')
-_tx_dom=$(df -h /media/dom 2>/dev/null | awk 'NR==2{print $4 " free"}')
+_tx_dom=$(grep -q ' /media/dom vfat ' /proc/mounts && df -h /media/dom | awk 'NR==2{print $4 " free"}')
 
 printf '\n  \033[1mTenerix Zero\033[0m  %s  up %s\n' "$(hostname)" "$_tx_up"
 printf '  ─────────────────────────────────────────────────────\n'
@@ -43,7 +43,7 @@ else
 fi
 printf '  Network  %s\n' "${_tx_ip:-no IPv4 address}"
 printf '  Memory   %s\n' "$_tx_mem"
-printf '  Root     %s   DOM %s\n' "$_tx_root" "${_tx_dom:-?}"
+printf '  Root     %s   DOM %s\n' "$_tx_root" "${_tx_dom:-not mounted}"
 [ "$_tx_mode" = emergency ] && printf '  \033[1;31m!! FAN EMERGENCY: full speed, see: logread | grep tenerix-fan\033[0m\n'
 printf '  ─────────────────────────────────────────────────────\n'
 printf '  temps = live sensors   settings: /etc/conf.d/tenerix-fan\n\n'
