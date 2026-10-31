@@ -1,0 +1,107 @@
+RN426 panel experiment — 2026-10-31
+Sanitized output excerpts; private address/credentials/device serials omitted.
+Labels prefixed with # are explanatory annotations, not command output.
+
+# Identity/environment before panel operations
+6.12.107+deb13-amd64
+Python 3.13.5
+NETGEAR
+ReadyNAS 426
+ReadyNAS 426
+Model name: Intel(R) Atom(TM) CPU C3538 @ 2.10GHz
+00:1f.0 ISA bridge [0601]: Intel Corporation Atom Processor C3000 Series LPC or eSPI [8086:19dc] (rev 11)
+SMBus I801 adapter at f000
+SMBus iSMT adapter at dff1e000
+
+# Dependency simulation
+The following NEW packages will be installed:
+  libraqm0 libwebpdemux2 libwebpmux3 python3-pil
+0 upgraded, 4 newly installed, 0 to remove and 0 not upgraded.
+After this operation, 2,289 kB of additional disk space will be used.
+# Actual installation selected the reviewed exact versions; final setup:
+Setting up libwebpdemux2:amd64 (1.5.0-0.1) ...
+Setting up libraqm0:amd64 (0.10.2-1) ...
+Setting up libwebpmux3:amd64 (1.5.0-0.1) ...
+Setting up python3-pil:amd64 (11.1.0-5+deb13u4) ...
+Processing triggers for libc-bin (2.41-12+deb13u4) ...
+# Pillow import after installation:
+11.1.0
+
+# Read-only preflight (same output before first write and after active test)
+PADBAR N: 0x00000400
+PADBAR S: 0x00000400
+EN: 0x05000201
+CLK: 0x05000201
+MOSI: 0x05000200
+RST: 0x05000201
+DC: 0x45000201
+CS: 0x45000201
+IRQ: 0x43080102
+READ-ONLY PREFLIGHT PASSED; no GPIO writes
+
+# Initial show
+Text frame sent; physical appearance requires operator confirmation
+# Operator confirmed, translated from Polish: "I see Debian 13 RN426 ready."
+
+# Initial bounded hardware button test, complete event capture in order
+{"status": "listening", "seconds": 300.0}
+{"button": "LEFT", "bitmap": 1}
+{"button": "RIGHT", "bitmap": 2}
+{"button": "UP", "bitmap": 4}
+{"button": "DOWN", "bitmap": 8}
+{"button": "CENTER", "bitmap": 16}
+{"button": "LEFT", "bitmap": 1}
+{"button": "CENTER", "bitmap": 16}
+{"button": "CENTER", "bitmap": 16}
+{"button": "CENTER", "bitmap": 16}
+{"button": "UP", "bitmap": 4}
+{"button": "RIGHT", "bitmap": 2}
+{"button": "RIGHT", "bitmap": 2}
+{"button": "RIGHT", "bitmap": 2}
+{"button": "DOWN", "bitmap": 8}
+{"button": "CENTER", "bitmap": 16}
+{"button": "CENTER", "bitmap": 16}
+{"counts": {"UP": 2, "DOWN": 2, "LEFT": 2, "RIGHT": 4, "CENTER": 6}, "mcu_reads": 16}
+# Operator confirmed: buttons change the description; "Button" then direction;
+# "CENTER" for the middle button. Listener terminated cleanly, exit 0.
+
+# Upstream software-only tests on development machine
+Ran 318 tests in 0.026s
+OK
+
+# Final adapter unittest on NAS
+Ran 10 tests in 0.015s
+OK
+# Final adapter show
+{"status": "frame sent", "frame_ms": 158.15, "visual_confirmation": "required"}
+
+# API exercise and final idle listener, same single Panel context
+{"operation": "sleep", "status": "command sent; EN/RST preserved high"}
+{"operation": "wake", "status": "command sent; no MCU reset"}
+{"operation": "clear", "status": "blank frame sent"}
+{"operation": "show", "status": "original test text restored"}
+{"status": "listening", "seconds": 15}
+{"counts": {"UP": 0, "DOWN": 0, "LEFT": 0, "RIGHT": 0, "CENTER": 0}, "mcu_reads": 0}
+
+# Final module presence, no module/configuration changes to it87
+i2c_dev                28672  0
+it87                   77824  0
+hwmon_vid              12288  1 it87
+i2c_i801               36864  0
+i2c_smbus              16384  1 i2c_i801
+# Relevant recent kernel log (it87 load predates this task)
+[ 3144.712054] debian kernel: it87: loading out-of-tree module taints kernel.
+[ 3144.712218] debian kernel: it87: module verification failed: signature and/or required key missing - tainting kernel
+[ 3144.716029] debian kernel: it87: Found IT8613E chip at 0xa30, revision 3
+[ 3144.716082] debian kernel: it87: Beeping is supported
+[ 3897.316030] debian kernel: i2c_dev: i2c /dev entries driver
+# fuser /dev/mem /dev/i2c-0, ps -C python3 and systemctl --failed produced no entries.
+# Passive thermal readings before / during / after:
+# CPU package millidegrees C: 37000 / 38000 / 37000
+# it8613 temp2 millidegrees C: 31000 / 31000 / 31000
+# fan2 RPM: 1520 / 1516 / 1979 (variation observed; cause not established)
+
+# Final tested NAS files matched the development repository byte-for-byte:
+d78f64e5887f22184f49f1dde633e0bc7f8d4e889da8f9d28d1d0a555d3f3740  panel.py
+76b325519fd7386a027b27cacca53a2ddfadbbe57a0b943f8c156949563bf235  test_panel.py
+2312915118e75a482b60af271f44b57f922db47055e140082c468f920e396a6b  provenance.json

@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/riplatt/truenas-rn426-panel.git",
+  "commit": "2968ee0514908d44b076ed1120f385a338bf1cd2",
+  "license": "MIT",
+  "runtime_sha256": {
+    "rnpanel/__init__.py": "d801c4de1aba3766e81344a5bfaa1e89c378fe1942a07ed3be0e7827e90765f1",
+    "rnpanel/gpio.py": "c2b09870bb8bca602e06a8926cb8d424b7b86837b2e3c41b7f92ddf5bf5a6c86",
+    "rnpanel/lcd.py": "3aca139d15743c11c22c691a90099beb24a6145f0e24e86d34bebe1090529223",
+    "rnpanel/i2c.py": "792d0791d2d03b5d76b3a0536ef47ef442f04ed1005b39d35ca9b618d8ee6104",
+    "rnpanel/models.py": "9441182707c0c5e6261e20256114c6e2236988738765db6242200948978fbf40",
+    "rnpanel/msp430.py": "01ed87454017150a7562e83284c6bd9ac4398002a354a0a20f297931b274e044"
+  }
+}
