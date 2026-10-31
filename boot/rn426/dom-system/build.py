@@ -132,14 +132,24 @@ def configure(root, password_hash, keys):
     # Parameters exactly as in the supervised Alpine hardware test.
     write(root, '/etc/modprobe.d/it87.conf', 'options it87 fix_pwm_polarity=0 update_vbat=0 ignore_resource_conflict=0\n')
     write(root, '/etc/motd', 'Tenerix Zero (RN426 DOM system). Root: /dev/loop0 = /media/dom/tenerix/root.img\n'
-          'Fans/temperatures: grep . /sys/class/hwmon/hwmon*/{name,temp*_input,fan*_input,pwm*}\n')
+          'Temperatures, fan speed and PWM: temps   (settings: /etc/conf.d/tenerix-fan)\n')
+    # Fan keeper: PWM 80 at every boot, temperature watch, full speed on overheat (fan/).
+    fan = HERE / 'fan'
+    for source, target, mode in [('tenerix-fan', 'usr/local/sbin/tenerix-fan', 0o755),
+                                 ('temps', 'usr/local/bin/temps', 0o755),
+                                 ('tenerix-fan.start', 'etc/local.d/tenerix-fan.start', 0o755),
+                                 ('tenerix-fan.stop', 'etc/local.d/tenerix-fan.stop', 0o755),
+                                 ('tenerix-fan.conf', 'etc/conf.d/tenerix-fan', 0o644)]:
+        (root / target).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(fan / source, root / target)
+        (root / target).chmod(mode)
     runlevels = root / 'etc/runlevels'
     for path in runlevels.glob('*/*'):
         path.unlink()
     for level, service in [('sysinit', 'devfs'), ('sysinit', 'sysfs'), ('sysinit', 'dmesg'),
                            ('boot', 'root'), ('boot', 'hostname'), ('boot', 'bootmisc'), ('boot', 'sysctl'),
                            ('boot', 'modules'), ('boot', 'syslog'), ('default', 'networking'),
-                           ('default', 'sshd'),
+                           ('default', 'sshd'), ('default', 'local'),
                            ('shutdown', 'killprocs'), ('shutdown', 'mount-ro')]:
         (runlevels / level).mkdir(parents=True, exist_ok=True)
         (runlevels / level / service).symlink_to(f'/etc/init.d/{service}')

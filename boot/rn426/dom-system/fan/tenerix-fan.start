@@ -1,0 +1,3 @@
+#!/bin/sh
+# Started by OpenRC "local" at every boot: keep the RN426 fan at PWM 80 and watch temperatures.
+start-stop-daemon -S -b -m -p /run/tenerix-fan.pid -x /usr/local/sbin/tenerix-fan

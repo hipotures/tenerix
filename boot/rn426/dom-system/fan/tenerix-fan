@@ -1,0 +1,71 @@
+#!/bin/sh
+# RN426 fan keeper: set the IT8613E fan (pwm2) to FAN_PWM at boot and watch temperatures.
+# Emergency full speed if CPU or board gets hot, a sensor is invalid, or this script stops.
+# Status line: /run/tenerix-fan (read with `temps`). Settings: /etc/conf.d/tenerix-fan.
+FAN_PWM=80
+CPU_HOT=70      # degrees C: at or above -> PWM 255
+BOARD_HOT=50
+CPU_OK=60       # back to FAN_PWM only below both of these
+BOARD_OK=45
+INTERVAL=${INTERVAL:-5}
+HWMON=${HWMON:-/sys/class/hwmon}
+[ -f /etc/conf.d/tenerix-fan ] && . /etc/conf.d/tenerix-fan
+STATUS=/run/tenerix-fan
+
+find_hwmon() {
+    for h in "$HWMON"/hwmon*; do
+        [ "$(cat "$h/name" 2>/dev/null)" = "$1" ] && { echo "$h"; return 0; }
+    done
+    return 1
+}
+
+tries=0
+until board=$(find_hwmon it8613) && cpu=$(find_hwmon coretemp); do
+    tries=$((tries + 1))
+    [ "$tries" -lt 30 ] || { logger -t tenerix-fan "it8613/coretemp not found; fan left at BIOS setting"; exit 1; }
+    sleep 1
+done
+
+set_pwm() {
+    echo 1 > "$board/pwm2_enable"
+    echo "$1" > "$board/pwm2"
+    target=$1
+}
+trap 'echo 255 > "$board/pwm2"; logger -t tenerix-fan "stopped: fan set to full speed"; exit 0' TERM INT HUP
+set_pwm "$FAN_PWM"
+mode=normal
+logger -t tenerix-fan "fan pwm2=$FAN_PWM; emergency at CPU>=${CPU_HOT}C or board>=${BOARD_HOT}C"
+loops=0
+while :; do
+    cpu_max=0
+    for f in "$cpu"/temp*_input; do
+        v=$(cat "$f" 2>/dev/null || echo 0)
+        [ "$v" -gt "$cpu_max" ] && cpu_max=$v
+    done
+    board_t=$(cat "$board/temp2_input" 2>/dev/null || echo 0)
+    rpm=$(cat "$board/fan2_input" 2>/dev/null || echo 0)
+    pwm=$(cat "$board/pwm2" 2>/dev/null || echo -1)
+    cpu_c=$((cpu_max / 1000)); board_c=$((board_t / 1000))
+    if [ "$cpu_c" -lt 1 ] || [ "$cpu_c" -gt 120 ] || [ "$board_c" -lt 1 ] || [ "$board_c" -gt 120 ]; then
+        reason="invalid sensor (cpu=${cpu_c}C board=${board_c}C)"
+    elif [ "$cpu_c" -ge "$CPU_HOT" ] || [ "$board_c" -ge "$BOARD_HOT" ]; then
+        reason="hot (cpu=${cpu_c}C board=${board_c}C)"
+    else
+        reason=
+    fi
+    if [ -n "$reason" ] && [ "$mode" = normal ]; then
+        set_pwm 255; mode=emergency
+        logger -t tenerix-fan "EMERGENCY full speed: $reason"
+    elif [ -z "$reason" ] && [ "$mode" = emergency ] && [ "$cpu_c" -lt "$CPU_OK" ] && [ "$board_c" -lt "$BOARD_OK" ]; then
+        set_pwm "$FAN_PWM"; mode=normal
+        logger -t tenerix-fan "normal again: cpu=${cpu_c}C board=${board_c}C, pwm2=$FAN_PWM"
+    elif [ "$pwm" != "$target" ]; then
+        set_pwm "$target"     # someone/something changed it; restore
+    fi
+    printf 'cpu=%sC board=%sC fan=%srpm pwm2=%s mode=%s at %s\n' \
+        "$cpu_c" "$board_c" "$rpm" "$(cat "$board/pwm2")" "$mode" "$(date '+%F %T')" > "$STATUS.tmp"
+    mv "$STATUS.tmp" "$STATUS"
+    loops=$((loops + 1))
+    [ -n "${MAX_LOOPS:-}" ] && [ "$loops" -ge "$MAX_LOOPS" ] && exit 0
+    sleep "$INTERVAL"
+done

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Current RN426 temperatures, fan speed and PWM.
+cat /run/tenerix-fan 2>/dev/null || echo 'tenerix-fan not running'
+for h in /sys/class/hwmon/hwmon*; do
+    name=$(cat "$h/name")
+    case "$name" in coretemp|it8613) ;; *) continue ;; esac
+    for f in "$h"/temp*_input "$h"/fan*_input "$h"/pwm[0-9]; do
+        [ -e "$f" ] && printf '%-9s %-12s %s\n' "$name" "${f##*/}" "$(cat "$f")"
+    done
+done
