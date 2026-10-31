@@ -12,3 +12,20 @@ subvolumes have flags `0x0`.
 * `tenerix-readynas-root-flag.patch`: additionally clears the bit in memory when a root is
   loaded, so it is written out on the next update of that subvolume. **Not used.** Whether to
   clear the bit on disk is still open: its exact NETGEAR meaning (snapshot related) is unknown.
+
+## Meaning of the flag (from NETGEAR's GPL source)
+
+Source: `ReadyNASOS_V6.10.6_WW_src.zip` (archive.org collection `netgearfirmwaresgpl`), tree
+`linux-4.4.218-x86_64`, the same kernel line as the RN426 firmware 6.10.10 (4.4.218.x86_64.1).
+
+* `include/uapi/linux/btrfs.h`: `#define BTRFS_SUBVOL_AUTO_DEFRAG (1ULL << 16)`.
+* `fs/btrfs/ioctl.c`: `BTRFS_IOC_SUBVOL_SETFLAGS` / `GETFLAGS` copy this bit straight into and out
+  of `root_item.flags`. The firmware binary confirms it: `btrfs_ioctl_subvol_setflags` does
+  `or $0x10000`, and `getflags` does `and $0x10000` (disassembly of the DOM `KERNEL`).
+* `fs/btrfs/file.c` `__need_auto_defrag()`: the only consumer. If the bit is set, writes to that
+  subvolume queue inodes for background auto-defragmentation.
+
+So `0x10000` is a per-share "auto-defrag" switch. It has no on-disk structural meaning.
+Clearing it only stops ReadyNAS-style automatic defragmentation of `Archiwum`; mainline offers
+the same behaviour filesystem-wide with `-o autodefrag`. After clearing, the stock Alpine kernel
+reads the volume without any patch.
