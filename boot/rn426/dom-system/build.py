@@ -131,15 +131,15 @@ def configure(root, password_hash, keys):
     write(root, '/etc/modules', 'af_packet\ncoretemp\nit87\nixgbe\ne1000\n')
     # Parameters exactly as in the supervised Alpine hardware test.
     write(root, '/etc/modprobe.d/it87.conf', 'options it87 fix_pwm_polarity=0 update_vbat=0 ignore_resource_conflict=0\n')
-    write(root, '/etc/motd', 'Tenerix Zero (RN426 DOM system). Root: /dev/loop0 = /media/dom/tenerix/root.img\n'
-          'Temperatures, fan speed and PWM: temps   (settings: /etc/conf.d/tenerix-fan)\n')
+    write(root, '/etc/motd', '')   # login summary comes from /etc/profile.d/tenerix-status.sh
     # Fan keeper: PWM 80 at every boot, temperature watch, full speed on overheat (fan/).
     fan = HERE / 'fan'
     for source, target, mode in [('tenerix-fan', 'usr/local/sbin/tenerix-fan', 0o755),
                                  ('temps', 'usr/local/bin/temps', 0o755),
                                  ('tenerix-fan.start', 'etc/local.d/tenerix-fan.start', 0o755),
                                  ('tenerix-fan.stop', 'etc/local.d/tenerix-fan.stop', 0o755),
-                                 ('tenerix-fan.conf', 'etc/conf.d/tenerix-fan', 0o644)]:
+                                 ('tenerix-fan.conf', 'etc/conf.d/tenerix-fan', 0o644),
+                                 ('../motd/tenerix-status.sh', 'etc/profile.d/tenerix-status.sh', 0o644)]:
         (root / target).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(fan / source, root / target)
         (root / target).chmod(mode)
