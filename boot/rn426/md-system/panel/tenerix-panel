@@ -48,7 +48,8 @@ def compose():
         line1 = f"CPU{f.get('cpu', '?')} BRD{f.get('board', '?')}"
     else:
         line1 = 'NO SENSORS'
-    parts = [f"FAN {f.get('fan', '?')} PWM{f.get('pwm2', '?')}", *scrub()]
+    hdd = f.get('hdd', '-')
+    parts = ([f"HDD {hdd}"] if hdd != '-' else []) + [f"FAN {f.get('fan', '?')} PWM{f.get('pwm2', '?')}", *scrub()]
     return line1, '   '.join(parts) + '   '
 
 

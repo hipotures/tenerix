@@ -5,8 +5,11 @@
 FAN_PWM=80
 CPU_HOT=70      # degrees C: at or above -> PWM 255
 BOARD_HOT=50
-CPU_OK=60       # back to FAN_PWM only below both of these
+CPU_OK=60       # back to FAN_PWM only below all of these
 BOARD_OK=45
+HDD_HOT=55      # hottest SATA disk (SMART attribute 194), read every HDD_EVERY loops
+HDD_OK=50
+HDD_EVERY=12
 INTERVAL=${INTERVAL:-5}
 HWMON=${HWMON:-/sys/class/hwmon}
 [ -f /etc/conf.d/tenerix-fan ] && . /etc/conf.d/tenerix-fan
@@ -32,6 +35,19 @@ set_pwm() {
     target=$1
 }
 trap 'echo 255 > "$board/pwm2"; logger -t tenerix-fan "stopped: fan set to full speed"; exit 0' TERM INT HUP
+# Hottest/coolest internal SATA disk via SMART; disks in standby are skipped (not woken).
+read_hdd() {
+    hdd_min=; hdd_max=
+    for d in /sys/block/sd*; do
+        [ "$(cat "$d/removable" 2>/dev/null)" = 0 ] || continue
+        readlink -f "$d/device" | grep -q '/ata[0-9]' || continue
+        t=$(smartctl -n standby -A "/dev/${d##*/}" 2>/dev/null | awk '$1 == 194 {print $10; exit}')
+        case "$t" in ''|*[!0-9]*) continue ;; esac
+        [ -z "$hdd_max" ] || [ "$t" -gt "$hdd_max" ] && hdd_max=$t
+        [ -z "$hdd_min" ] || [ "$t" -lt "$hdd_min" ] && hdd_min=$t
+    done
+}
+hdd_min=; hdd_max=
 set_pwm "$FAN_PWM"
 mode=normal
 logger -t tenerix-fan "fan pwm2=$FAN_PWM; emergency at CPU>=${CPU_HOT}C or board>=${BOARD_HOT}C"
@@ -46,24 +62,30 @@ while :; do
     rpm=$(cat "$board/fan2_input" 2>/dev/null || echo 0)
     pwm=$(cat "$board/pwm2" 2>/dev/null || echo -1)
     cpu_c=$((cpu_max / 1000)); board_c=$((board_t / 1000))
+    [ $((loops % HDD_EVERY)) -eq 0 ] && read_hdd
+    hdd_c=${hdd_max:-0}
     if [ "$cpu_c" -lt 1 ] || [ "$cpu_c" -gt 120 ] || [ "$board_c" -lt 1 ] || [ "$board_c" -gt 120 ]; then
         reason="invalid sensor (cpu=${cpu_c}C board=${board_c}C)"
-    elif [ "$cpu_c" -ge "$CPU_HOT" ] || [ "$board_c" -ge "$BOARD_HOT" ]; then
-        reason="hot (cpu=${cpu_c}C board=${board_c}C)"
+    elif [ "$cpu_c" -ge "$CPU_HOT" ] || [ "$board_c" -ge "$BOARD_HOT" ] || [ "$hdd_c" -ge "$HDD_HOT" ]; then
+        reason="hot (cpu=${cpu_c}C board=${board_c}C hdd=${hdd_c}C)"
     else
         reason=
     fi
     if [ -n "$reason" ] && [ "$mode" = normal ]; then
         set_pwm 255; mode=emergency
         logger -t tenerix-fan "EMERGENCY full speed: $reason"
-    elif [ -z "$reason" ] && [ "$mode" = emergency ] && [ "$cpu_c" -lt "$CPU_OK" ] && [ "$board_c" -lt "$BOARD_OK" ]; then
+    elif [ -z "$reason" ] && [ "$mode" = emergency ] && [ "$cpu_c" -lt "$CPU_OK" ] && [ "$board_c" -lt "$BOARD_OK" ] \
+         && [ "$hdd_c" -lt "$HDD_OK" ]; then
         set_pwm "$FAN_PWM"; mode=normal
         logger -t tenerix-fan "normal again: cpu=${cpu_c}C board=${board_c}C, pwm2=$FAN_PWM"
     elif [ "$pwm" != "$target" ]; then
         set_pwm "$target"     # someone/something changed it; restore
     fi
-    printf 'cpu=%sC board=%sC fan=%srpm pwm2=%s mode=%s at %s\n' \
-        "$cpu_c" "$board_c" "$rpm" "$(cat "$board/pwm2")" "$mode" "$(date '+%F %T')" > "$STATUS.tmp"
+    hdd_txt=-
+    [ -n "$hdd_max" ] && hdd_txt="$hdd_min-${hdd_max}C"
+    printf 'cpu=%sC board=%sC hdd=%s fan=%srpm pwm2=%s mode=%s at %s\n' \
+        "$cpu_c" "$board_c" "$hdd_txt" "$rpm" "$(cat "$board/pwm2")" "$mode" \
+        "$(date '+%F %T')" > "$STATUS.tmp"
     mv "$STATUS.tmp" "$STATUS"
     loops=$((loops + 1))
     [ -n "${MAX_LOOPS:-}" ] && [ "$loops" -ge "$MAX_LOOPS" ] && exit 0

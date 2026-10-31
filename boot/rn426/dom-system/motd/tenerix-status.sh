@@ -36,6 +36,8 @@ printf '  ───────────────────────�
 printf '  CPU      package %s   cores%s\n' "$_tx_pkg" "${_tx_cores:- ?}"
 if [ -n "$_tx_board" ]; then
     printf '  Board    %s\n' "$(_tx_c "$_tx_board/temp2_input")"
+    _tx_hdd=$(sed -n 's/.* hdd=\([^ ]*\).*/\1/p' /run/tenerix-fan 2>/dev/null)
+    [ -n "$_tx_hdd" ] && [ "$_tx_hdd" != - ] && printf '  Disks    %s (SMART, min-max)\n' "$(echo "$_tx_hdd" | sed 's/C$/°C/')"
     printf '  Fan      %s rpm   PWM %s/255   %s\n' "$(cat "$_tx_board/fan2_input" 2>/dev/null || echo '?')" \
         "$(cat "$_tx_board/pwm2" 2>/dev/null || echo '?')" "${_tx_mode:-keeper not running}"
 else
@@ -47,5 +49,5 @@ printf '  Root     %s   DOM %s\n' "$_tx_root" "${_tx_dom:-not mounted}"
 [ "$_tx_mode" = emergency ] && printf '  \033[1;31m!! FAN EMERGENCY: full speed, see: logread | grep tenerix-fan\033[0m\n'
 printf '  ─────────────────────────────────────────────────────\n'
 printf '  temps = live sensors   settings: /etc/conf.d/tenerix-fan\n\n'
-unset _tx_cpu _tx_board _tx_cores _tx_pkg _tx_mode _tx_ip _tx_up _tx_mem _tx_root _tx_dom _tx_f _tx_l
+unset _tx_hdd _tx_cpu _tx_board _tx_cores _tx_pkg _tx_mode _tx_ip _tx_up _tx_mem _tx_root _tx_dom _tx_f _tx_l
 unset -f _tx_hwmon _tx_c 2>/dev/null
