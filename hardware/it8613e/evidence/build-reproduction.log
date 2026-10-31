@@ -1,0 +1,28 @@
+make: Entering directory '/tmp/rn426-it8613e.EttJjj/rebuild'
+sha256sum --check SOURCES.sha256
+Kbuild: OK
+patches/0001-backport-it8613e-linux-6.12.107.patch: OK
+upstream/28e319062056586c255bac750eca2b595c19c31f.patch: OK
+upstream/600a85f556b783b5c619c4b6a576d5b2471be1ca.patch: OK
+upstream/ab003112b4948774057bde1c488b0bdbd96d687c.patch: OK
+upstream/linux-6.12.107-it87.c: OK
+upstream/linux-it8613e-upstream.c: OK
+mkdir -p build
+cp -- upstream/linux-6.12.107-it87.c build/it87.c
+patch --batch --fuzz=0 --no-backup-if-mismatch -d build -p1 < patches/0001-backport-it8613e-linux-6.12.107.patch
+patching file it87.c
+mkdir -p build
+cp -- Kbuild build/Kbuild
+make -C "/lib/modules/6.12.107+deb13-amd64/build" M="/tmp/rn426-it8613e.EttJjj/rebuild/build" -j2 W=1 KCFLAGS="-ffile-prefix-map=/tmp/rn426-it8613e.EttJjj/rebuild=/usr/src/rn426-it8613e" modules
+make[1]: Entering directory '/usr/src/linux-headers-6.12.107+deb13-amd64'
+  CC [M]  /tmp/rn426-it8613e.EttJjj/rebuild/build/it87.o
+  MODPOST /tmp/rn426-it8613e.EttJjj/rebuild/build/Module.symvers
+  CC [M]  /tmp/rn426-it8613e.EttJjj/rebuild/build/it87.mod.o
+  CC [M]  /tmp/rn426-it8613e.EttJjj/rebuild/build/.module-common.o
+  LD [M]  /tmp/rn426-it8613e.EttJjj/rebuild/build/it87.ko
+  BTF [M] /tmp/rn426-it8613e.EttJjj/rebuild/build/it87.ko
+make[1]: Leaving directory '/usr/src/linux-headers-6.12.107+deb13-amd64'
+make: Leaving directory '/tmp/rn426-it8613e.EttJjj/rebuild'
+525cc32659970904024fc177c82d9547f3fe57618000679643391652e537270f  build/it87.ko
+525cc32659970904024fc177c82d9547f3fe57618000679643391652e537270f  rebuild/build/it87.ko
+BYTE_IDENTICAL_REBUILD

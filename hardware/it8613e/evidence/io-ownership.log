@@ -1,0 +1,58 @@
+0000-0cf7 : PCI Bus 0000:00
+  0000-001f : dma1
+  0020-0021 : pic1
+  0040-0043 : timer0
+  0050-0053 : timer1
+  0060-0060 : keyboard
+  0064-0064 : keyboard
+  0070-0077 : rtc0
+  0080-008f : dma page reg
+  00a0-00a1 : pic2
+  00b2-00b2 : APEI ERST
+  00c0-00df : dma2
+  00f0-00ff : fpu
+  03d4-03d5 : cga
+  03f8-03ff : serial
+  0400-0401 : wdat_wdt
+  0406-0407 : wdat_wdt
+  0408-0409 : wdat_wdt
+  040a-040b : wdat_wdt
+  0412-0413 : wdat_wdt
+  0500-05fe : pnp 00:01
+  0680-069f : pnp 00:01
+  0a00-0a1f : pnp 00:03
+  0a20-0a2f : pnp 00:03
+  0a30-0a3f : pnp 00:03
+0cf8-0cff : PCI conf1
+0d00-ffff : PCI Bus 0000:00
+  1800-18fe : pnp 00:05
+    1800-1803 : ACPI PM1a_EVT_BLK
+    1804-1805 : ACPI PM1a_CNT_BLK
+    1808-180b : ACPI PM_TMR
+    1810-1815 : ACPI CPU throttle
+    1850-1850 : ACPI PM2_CNT_BLK
+    1880-189f : ACPI GPE0_BLK
+  f000-f01f : 0000:00:1f.4
+    f000-f01f : i801_smbus
+  f020-f03f : 0000:00:14.0
+    f020-f03f : ahci
+  f040-f05f : 0000:00:13.0
+    f040-f05f : ahci
+  f060-f063 : 0000:00:14.0
+    f060-f063 : ahci
+  f070-f077 : 0000:00:14.0
+    f070-f077 : ahci
+  f080-f083 : 0000:00:13.0
+    f080-f083 : ahci
+  f090-f097 : 0000:00:13.0
+    f090-f097 : ahci
+state = active
+io 0xa00-0xa1f
+io 0xa20-0xa2f
+io 0xa30-0xa3f
+../../../bus/pnp/drivers/system
+/lib/modules/6.12.107+deb13-amd64/kernel/drivers/hwmon/hwmon-vid.ko.xz
+6.12.107+deb13-amd64 SMP preempt mod_unload modversions
+HWMON_VID_NOT_LOADED
+IT87_NOT_LOADED
+Sat Oct 31 03:20:37 PM UTC 2026

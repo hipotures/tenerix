@@ -1,0 +1,2 @@
+obj-m := it87.o
+ccflags-y += -Werror

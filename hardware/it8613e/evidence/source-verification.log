@@ -1,0 +1,9 @@
+Kbuild: OK
+patches/0001-backport-it8613e-linux-6.12.107.patch: OK
+upstream/28e319062056586c255bac750eca2b595c19c31f.patch: OK
+upstream/600a85f556b783b5c619c4b6a576d5b2471be1ca.patch: OK
+upstream/ab003112b4948774057bde1c488b0bdbd96d687c.patch: OK
+upstream/linux-6.12.107-it87.c: OK
+upstream/linux-it8613e-upstream.c: OK
+patching file it87.c
+PASS: clean zero-fuzz patch; expected source hash; exact upstream minus IT8689.

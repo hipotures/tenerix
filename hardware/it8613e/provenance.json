@@ -1,0 +1,39 @@
+{
+  "target_kernel": "6.12.107+deb13-amd64",
+  "debian_kernel_package": "6.12.107-1",
+  "baseline": {
+    "repo": "https://github.com/gregkh/linux",
+    "tag": "v6.12.107",
+    "commit": "f717995cb7dcd8998ab15516b8006aea09cfde0d",
+    "path": "drivers/hwmon/it87.c"
+  },
+  "accepted_series": [
+    {
+      "sha": "28e319062056586c255bac750eca2b595c19c31f",
+      "subject": "hwmon: (it87) describe per-chip PWM temperature maps",
+      "committed": "2026-10-18T16:35:06Z",
+      "url": "https://github.com/torvalds/linux/commit/28e319062056586c255bac750eca2b595c19c31f"
+    },
+    {
+      "sha": "ab003112b4948774057bde1c488b0bdbd96d687c",
+      "subject": "hwmon: (it87) prepare for extended PWM temp maps",
+      "committed": "2026-10-18T16:35:06Z",
+      "url": "https://github.com/torvalds/linux/commit/ab003112b4948774057bde1c488b0bdbd96d687c"
+    },
+    {
+      "sha": "600a85f556b783b5c619c4b6a576d5b2471be1ca",
+      "subject": "hwmon: (it87) add IT8613E support",
+      "committed": "2026-10-18T16:35:06Z",
+      "url": "https://github.com/torvalds/linux/commit/600a85f556b783b5c619c4b6a576d5b2471be1ca"
+    }
+  ],
+  "history_checked_at_mainline": "36aad21d50d1af3f6954bb0c988257a908202477",
+  "latest_it87_change_at_history_check": "600a85f556b783b5c619c4b6a576d5b2471be1ca",
+  "historical_comparison": {
+    "repo": "https://github.com/a1wong/it87",
+    "commit": "bfbaf881f5bc1462b51e1b0296dba70d0b150515",
+    "used_for_build": false
+  },
+  "prepared_source_sha256": "ccdd098144f8ef99bc40a183c46e1c889e5987c076f6f13478a913307212085f",
+  "module_sha256": "525cc32659970904024fc177c82d9547f3fe57618000679643391652e537270f"
+}

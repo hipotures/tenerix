@@ -1,0 +1,83 @@
+PACKAGE /var/cache/apt/archives/linux-headers-6.12.107+deb13-amd64_6.12.107-1_amd64.deb
+0ab746a3d854ad0e666923147842d1e629cdb3e29a97b76ae25b4911285174e4  /var/cache/apt/archives/linux-headers-6.12.107+deb13-amd64_6.12.107-1_amd64.deb
+drwxr-xr-x root/root         0 2026-08-29 04:19 ./
+-rw-r--r-- root/root       917 2026-08-29 04:19 ./control
+-rw-r--r-- root/root    747185 2026-08-29 04:19 ./md5sums
+-rwxr-xr-x root/root       102 2026-08-29 04:19 ./postinst
+#!/bin/sh -e
+
+version=6.12.107+deb13-amd64
+
+linux-run-hooks headers postinst $version -- "$@"
+
+exit 0
+PACKAGE /var/cache/apt/archives/linux-headers-6.12.107+deb13-common_6.12.107-1_all.deb
+12dc292d7c238928fbcb7eebbe79208758fe263a4e2ea0e9b6734e6df12020a5  /var/cache/apt/archives/linux-headers-6.12.107+deb13-common_6.12.107-1_all.deb
+drwxr-xr-x root/root         0 2026-08-29 04:19 ./
+-rw-r--r-- root/root       754 2026-08-29 04:19 ./control
+-rw-r--r-- root/root   1081977 2026-08-29 04:19 ./md5sums
+PACKAGE /var/cache/apt/archives/linux-kbuild-6.12.107+deb13_6.12.107-1_amd64.deb
+0a88527eb05bca1ce75e7d39ec27539d385a24cf90b2b28917cc4903a4f710d3  /var/cache/apt/archives/linux-kbuild-6.12.107+deb13_6.12.107-1_amd64.deb
+drwxr-xr-x root/root         0 2026-08-29 04:19 ./
+-rw-r--r-- root/root       533 2026-08-29 04:19 ./control
+-rw-r--r-- root/root      6611 2026-08-29 04:19 ./md5sums
+PACKAGE /var/cache/apt/archives/pahole_1.30-1_amd64.deb
+08b8b559ab1707dc146880d329f1e96f011788a18d6d3dc7159accd488ae2712  /var/cache/apt/archives/pahole_1.30-1_amd64.deb
+drwxr-xr-x root/root         0 2025-04-18 06:26 ./
+-rw-r--r-- root/root      1267 2025-04-18 06:26 ./control
+-rw-r--r-- root/root      1239 2025-04-18 06:26 ./md5sums
+DKMS_AUTOINSTALLER
+#!/bin/sh
+#
+# dkms_autoinstaller - A service to automatically install DKMS modules for new kernels.
+#
+# chkconfig: 345 04 04
+# description: Compiles and install kernel modules automatically for new \
+#              kernels at boot.
+
+### BEGIN INIT INFO
+# Provides: dkms_autoinstaller dkms
+# Default-Start: 3 4 5
+# Default-Stop: 0 1 2 6
+# Required-Start: $local_fs
+# Required-Stop: $local_fs
+# Short-Description: DKMS kernel modules installer service
+# Description: A service to automatically install DKMS modules for new kernels.
+### END INIT INFO
+
+
+exec="/usr/sbin/dkms"
+MODDIR="/lib/modules"
+
+test -f $exec || exit 0
+
+case "$1" in
+    start)
+		if [ -n "$2" ]; then
+			kernel="$2"
+		else
+			kernel=$(uname -r)
+		fi
+		if [ ! -d "$MODDIR/$kernel/build/include" ]; then
+			echo "Automatic installation of modules for kernel $kernel was skipped since the kernel headers for this kernel do not seem to be installed."
+		else
+			dkms autoinstall --kernelver "$kernel"
+			res=$?
+			test $res = 0
+		fi
+		;;
+	stop|restart|force-reload|status|reload)
+		# There is no stop action, this and the 04 priority during stop is
+		# added to make RHEL chkconfig happy.
+		# Ignore others on debian/ubuntu too
+        ;;
+    *)
+        echo "Usage: $0 {start}"
+        exit 2
+esac
+HEADER_HOOKS
+total 1
+drwxr-xr-x 2 root root  27 Sep 12 07:55 .
+drwxr-xr-x 8 root root 123 Sep 12 07:55 ..
+-rwxr-xr-x 1 root root 195 Nov  1  2025 dkms
+DPKG_TRIGGER_QUEUE

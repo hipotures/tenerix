@@ -1,0 +1,155 @@
+ELF: ELF64 little-endian x86-64 relocatable
+name: it87
+vermagic: 6.12.107+deb13-amd64 SMP preempt mod_unload modversions
+depends: hwmon-vid
+license: GPL
+signer: (empty)
+srcversion: (empty)
+Strong undefined symbols resolved in exact Module.symvers: 40
+Version CRCs matched: 41
+Providers: drivers/hwmon/hwmon-vid, vmlinux
+SHA256: 525cc32659970904024fc177c82d9547f3fe57618000679643391652e537270f
+Module not loaded; validation does not establish hardware safety.
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          941776 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           64 (bytes)
+  Number of section headers:         73
+  Section header string table index: 72
+  [19] .modinfo          PROGBITS         0000000000000000  000077b2
+  [28] __versions        PROGBITS         0000000000000000  00007e30
+  [68] .BTF              PROGBITS         0000000000000000  0006b1d0
+  [69] .BTF.base         PROGBITS         0000000000000000  0006c4ab
+  [70] .symtab           SYMTAB           0000000000000000  0006c698
+                 U acpi_check_resource_conflict
+                 U BUG_func
+                 U _dev_err
+                 U _dev_info
+                 U devm_hwmon_device_register_with_groups
+                 U devm_kmalloc
+                 U __devm_request_region
+                 U _dev_warn
+                 U dmi_check_system
+                 U __dynamic_dev_dbg
+                 U __dynamic_pr_debug
+                 U __fentry__
+                 U ioport_resource
+                 U jiffies
+                 U kstrtoll
+                 U kstrtoull
+                 U __mutex_init
+                 U mutex_lock
+                 U mutex_unlock
+                 U param_array_ops
+                 U param_ops_bool
+                 U param_ops_ushort
+                 U platform_device_add
+                 U platform_device_add_data
+                 U platform_device_add_resources
+                 U platform_device_alloc
+                 U platform_device_put
+                 U platform_device_unregister
+                 U __platform_driver_register
+                 U platform_driver_unregister
+                 U platform_get_resource
+                 U _printk
+                 U pv_ops
+                 U __release_region
+                 U __request_region
+                 U sprintf
+                 U __stack_chk_fail
+                 U vid_from_reg
+                 U vid_which_vrm
+                 U __x86_return_thunk
+force_id:Override one or more detected device ID(s) (array of ushort)
+ignore_resource_conflict:Ignore ACPI resource conflict (bool)
+update_vbat:Update vbat if set else return powerup value (bool)
+fix_pwm_polarity:Force PWM polarity to active high (DANGEROUS) (bool)
+CONFIG_PREEMPT_BUILD=y
+CONFIG_PREEMPT_VOLUNTARY=y
+CONFIG_PREEMPT_COUNT=y
+CONFIG_PREEMPTION=y
+CONFIG_PREEMPT_DYNAMIC=y
+CONFIG_PREEMPT_RCU=y
+CONFIG_X86_64=y
+CONFIG_X86_64_SMP=y
+CONFIG_SMP=y
+CONFIG_X86_64_ACPI_NUMA=y
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+CONFIG_EFI_HANDOVER_PROTOCOL=y
+CONFIG_EFI_MIXED=y
+CONFIG_EFI_RUNTIME_MAP=y
+CONFIG_MODULES_USE_ELF_RELA=y
+CONFIG_MODULE_SIG_FORMAT=y
+CONFIG_MODULES=y
+CONFIG_MODULE_UNLOAD=y
+CONFIG_MODVERSIONS=y
+CONFIG_MODULE_SIG=y
+# CONFIG_MODULE_SIG_FORCE is not set
+CONFIG_MODULE_SIG_SHA256=y
+CONFIG_MODULE_SIG_HASH="sha256"
+CONFIG_MODULES_TREE_LOOKUP=y
+CONFIG_EFI_PARTITION=y
+CONFIG_PREEMPT_NOTIFIERS=y
+CONFIG_EFI_ESRT=y
+CONFIG_EFI_VARS_PSTORE=m
+CONFIG_EFI_SOFT_RESERVE=y
+CONFIG_EFI_DXE_MEM_ATTRIBUTES=y
+CONFIG_EFI_RUNTIME_WRAPPERS=y
+CONFIG_EFI_BOOTLOADER_CONTROL=m
+CONFIG_EFI_CAPSULE_LOADER=m
+CONFIG_EFI_DEV_PATH_PARSER=y
+CONFIG_EFI_EARLYCON=y
+CONFIG_EFI_CUSTOM_SSDT_OVERLAYS=y
+CONFIG_EFI_EMBEDDED_FIRMWARE=y
+CONFIG_HWMON=y
+CONFIG_HWMON_VID=m
+CONFIG_SENSORS_CORETEMP=m
+CONFIG_SENSORS_IT87=m
+CONFIG_EFIVAR_FS=m
+CONFIG_SECURITY_LOCKDOWN_LSM=y
+CONFIG_SECURITY_LOCKDOWN_LSM_EARLY=y
+CONFIG_LOCK_DOWN_KERNEL_FORCE_NONE=y
+CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT=y
+CONFIG_MODULE_SIG_KEY_TYPE_RSA=y
+CONFIG_DEBUG_INFO_BTF=y
+CONFIG_DEBUG_INFO_BTF_MODULES=y
+0
+[none] integrity confidentiality
+EFI_ABSENT
+BOOT_IMAGE=/live/vmlinuz boot=live components quiet splash initrd=/live/initrd.img console=tty0 console=ttyS0,115200n8
+24d83d3c9c34894e66f9f6bd6c0f5d316f3d1fb8b050e68988bc5520e9c2ec1f  /lib/modules/6.12.107+deb13-amd64/kernel/drivers/hwmon/it87.ko.xz
+ccdd098144f8ef99bc40a183c46e1c889e5987c076f6f13478a913307212085f  build/it87.c
+binutils 2.44-3 ii
+gcc-14 14.2.0-19 ii
+linux-headers-6.12.107+deb13-amd64 6.12.107-1 ii
+linux-headers-6.12.107+deb13-common 6.12.107-1 ii
+linux-kbuild-6.12.107+deb13 6.12.107-1 ii
+make 4.4.1-2 ii
+pahole 1.30-1 ii
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         1.9G  239M  1.7G  13% /
+tmpfs           1.9G  5.0M  1.9G   1% /tmp
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       775Mi       2.4Gi       244Mi       1.2Gi       3.0Gi
+Swap:             0B          0B          0B
+IT87_NOT_LOADED
+/sys/class/hwmon/hwmon0/name=acpitz
+/sys/class/hwmon/hwmon1/name=coretemp
+/sys/class/hwmon/hwmon0/temp1_input=0
+/sys/class/hwmon/hwmon1/temp1_input=35000
