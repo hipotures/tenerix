@@ -128,7 +128,7 @@ def configure(root, password_hash, keys):
           + ''.join(f'auto eth{i}\niface eth{i} inet dhcp\n\n' for i in (3, 0, 1, 2)))
     # Disks inserted later are never assembled automatically.
     write(root, '/etc/mdadm.conf', 'AUTO -all\n')
-    write(root, '/etc/modules', 'af_packet\ncoretemp\nit87\nixgbe\ne1000\n')
+    write(root, '/etc/modules', 'ahci\naf_packet\ncoretemp\nit87\nixgbe\ne1000\n')
     # Parameters exactly as in the supervised Alpine hardware test.
     write(root, '/etc/modprobe.d/it87.conf', 'options it87 fix_pwm_polarity=0 update_vbat=0 ignore_resource_conflict=0\n')
     write(root, '/etc/motd', '')   # login summary comes from /etc/profile.d/tenerix-status.sh
