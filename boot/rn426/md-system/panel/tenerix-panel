@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""RN426 front-panel status: line 1 = temperatures (fixed), line 2 = slow scrolling details.
+
+Reads /run/tenerix-fan (written by tenerix-fan), the IPv4 address and btrfs scrub status.
+Uses the reviewed panel adapter in /opt/tenerix/front-panel (exclusive /dev/mem owner).
+"""
+import re
+import signal
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, '/opt/tenerix/front-panel')
+
+STEP = 1.0          # seconds per scroll step (one character)
+WIDTH2 = 16         # characters visible on line 2 (13 px DejaVu Sans Mono, 132 px)
+REFRESH = 10        # re-read sensors and status every N steps
+
+
+def fan_status():
+    try:
+        return dict(re.findall(r'(\w+)=(\S+)', open('/run/tenerix-fan').read()))
+    except OSError:
+        return {}
+
+
+def address():
+    out = subprocess.run(['ip', '-4', '-o', 'addr', 'show', 'scope', 'global'],
+                         capture_output=True, text=True).stdout.split()
+    return [out[i + 1].split('/')[0] for i, w in enumerate(out) if w == 'inet'][:1] or ['no network']
+
+
+def scrub():
+    texts = []
+    for line in open('/proc/mounts'):
+        dev, point, fstype = line.split()[:3]
+        if fstype != 'btrfs':
+            continue
+        out = subprocess.run(['btrfs', 'scrub', 'status', point], capture_output=True, text=True).stdout
+        if re.search(r'Status:\s+running', out):
+            pct = re.search(r'\(([\d.]+%)\)', out)
+            eta = re.search(r'ETA:\s+\S+ \S+ +\d+ (\d+:\d+)', out)
+            errs = re.search(r'Error summary:\s+(.*)', out)
+            texts.append(f"SCRUB {pct.group(1) if pct else '?'} ETA {eta.group(1) if eta else '?'}"
+                         + ('' if errs and 'no errors' in errs.group(1) else ' ERRORS!'))
+    return texts
+
+
+def compose():
+    f = fan_status()
+    if f.get('mode') == 'emergency':
+        line1 = '!! FAN 100% !!'
+    elif f:
+        line1 = f"CPU{f.get('cpu', '?')} BRD{f.get('board', '?')}"
+    else:
+        line1 = 'NO SENSORS'
+    parts = [f"FAN {f.get('fan', '?')} PWM{f.get('pwm2', '?')}", *address(), *scrub()]
+    return line1, '   '.join(parts) + '   '
+
+
+def main():
+    import panel
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    while True:
+        try:
+            with panel.Panel() as p:
+                offset = 0
+                step = 0
+                line1, line2 = compose()
+                while True:
+                    if step % REFRESH == 0:
+                        line1, line2 = compose()
+                        offset %= len(line2)
+                    window = (line2 * 2)[offset:offset + WIDTH2]
+                    p.show(line1, window)
+                    offset = (offset + 1) % len(line2)
+                    step += 1
+                    time.sleep(STEP)
+        except SystemExit:
+            raise
+        except Exception as error:      # panel busy or I/O fault: report and retry later
+            print(f'tenerix-panel: {error}', file=sys.stderr, flush=True)
+            time.sleep(30)
+
+
+if __name__ == '__main__':
+    main()

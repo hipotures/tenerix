@@ -1,0 +1,5 @@
+#!/bin/sh
+# Started by OpenRC "local": RN426 front-panel status (temperatures, fan, address, scrub).
+modprobe -a i2c_i801 i2c_dev 2>/dev/null
+start-stop-daemon -S -b -m -p /run/tenerix-panel.pid -1 /var/log/tenerix-panel.log -2 /var/log/tenerix-panel.log \
+    -x /usr/bin/python3 -- /usr/local/sbin/tenerix-panel
