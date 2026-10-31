@@ -1,0 +1,30 @@
+--- /tmp/claude-1000/s/btrfs/tree-checker.c.orig	2026-10-31 23:52:17.328267489 +0100
++++ fs/btrfs/tree-checker.c	2026-10-31 23:52:17.347856344 +0100
+@@ -1278,8 +1278,8 @@
+ 		return -EUCLEAN;
+ 	}
+ 
+-	/* Flags check */
+-	if (unlikely(btrfs_root_flags(&ri) & ~valid_root_flags)) {
++	/* Flags check. Tenerix: tolerate the NETGEAR ReadyNAS root flag 0x10000 (cleared on load). */
++	if (unlikely(btrfs_root_flags(&ri) & ~(valid_root_flags | (1ULL << 16)))) {
+ 		generic_err(leaf, slot,
+ 			    "invalid root flags, have 0x%llx expect mask 0x%llx",
+ 			    btrfs_root_flags(&ri), valid_root_flags);
+--- /tmp/claude-1000/s/btrfs/disk-io.c.orig	2026-10-31 23:52:17.329797747 +0100
++++ fs/btrfs/disk-io.c	2026-10-31 23:52:17.348234417 +0100
+@@ -1019,6 +1019,14 @@
+ 		goto fail;
+ 	}
+ 
++	if (btrfs_root_flags(&root->root_item) & (1ULL << 16)) {
++		btrfs_set_root_flags(&root->root_item,
++				     btrfs_root_flags(&root->root_item) & ~(1ULL << 16));
++		btrfs_warn(fs_info,
++	"tenerix: cleared ReadyNAS root flag 0x10000 on root %llu (written with the next update of this root)",
++			   key->objectid);
++	}
++
+ 	generation = btrfs_root_generation(&root->root_item);
+ 	level = btrfs_root_level(&root->root_item);
+ 	check.level = level;

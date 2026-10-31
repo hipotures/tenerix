@@ -1,0 +1,13 @@
+--- tree-checker.c.orig	2026-10-31 23:52:17.328267489 +0100
++++ linux-6.18/fs/btrfs/tree-checker.c	2026-10-31 23:52:17.347856344 +0100
+@@ -1278,8 +1278,8 @@
+ 		return -EUCLEAN;
+ 	}
+ 
+-	/* Flags check */
+-	if (unlikely(btrfs_root_flags(&ri) & ~valid_root_flags)) {
++	/* Flags check. Tenerix: tolerate the NETGEAR ReadyNAS root flag 0x10000 (cleared on load). */
++	if (unlikely(btrfs_root_flags(&ri) & ~(valid_root_flags | (1ULL << 16)))) {
+ 		generic_err(leaf, slot,
+ 			    "invalid root flags, have 0x%llx expect mask 0x%llx",
+ 			    btrfs_root_flags(&ri), valid_root_flags);
