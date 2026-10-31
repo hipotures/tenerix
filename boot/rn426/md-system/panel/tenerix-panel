@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """RN426 front-panel status: line 1 = temperatures (fixed), line 2 = slow scrolling details.
 
-Reads /run/tenerix-fan (written by tenerix-fan), the IPv4 address and btrfs scrub status.
+Reads /run/tenerix-fan (written by tenerix-fan) and btrfs scrub status.
 Uses the reviewed panel adapter in /opt/tenerix/front-panel (exclusive /dev/mem owner).
 """
 import re
@@ -22,12 +22,6 @@ def fan_status():
         return dict(re.findall(r'(\w+)=(\S+)', open('/run/tenerix-fan').read()))
     except OSError:
         return {}
-
-
-def address():
-    out = subprocess.run(['ip', '-4', '-o', 'addr', 'show', 'scope', 'global'],
-                         capture_output=True, text=True).stdout.split()
-    return [out[i + 1].split('/')[0] for i, w in enumerate(out) if w == 'inet'][:1] or ['no network']
 
 
 def scrub():
@@ -54,7 +48,7 @@ def compose():
         line1 = f"CPU{f.get('cpu', '?')} BRD{f.get('board', '?')}"
     else:
         line1 = 'NO SENSORS'
-    parts = [f"FAN {f.get('fan', '?')} PWM{f.get('pwm2', '?')}", *address(), *scrub()]
+    parts = [f"FAN {f.get('fan', '?')} PWM{f.get('pwm2', '?')}", *scrub()]
     return line1, '   '.join(parts) + '   '
 
 
