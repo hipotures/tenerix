@@ -1,0 +1,72 @@
+#!/bin/sh
+# Minimal disk-system init. No nlplug-findfs, blkid scan, RAID scan or key discovery.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+/bin/busybox --install -s
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /run /newroot
+mount -t tmpfs tmpfs /run
+exec </dev/console >/dev/console 2>&1
+
+rescue() {
+    echo "TENERIX_RECOVERY: $*; no data/swap activation; serial shell"
+    while :; do /bin/sh -i; done
+}
+. /etc/tenerix/root.conf || rescue 'missing embedded root policy'
+# The boot slot comes from the SYSLINUX label, so it stays correct after g1 -> g0 rotation;
+# BUILD_ID is fixed inside this initramfs and identifies the kernel/initramfs/modules set.
+slot=
+for word in $(cat /proc/cmdline); do
+    case "$word" in tenerix.slot=*) slot=${word#tenerix.slot=} ;; esac
+done
+case "$slot" in g0|g1) ;; *) rescue "invalid or missing tenerix.slot=$slot" ;; esac
+echo "TENERIX_INIT slot=$slot build=$BUILD_ID permitted_md=$SYSTEM_MD_UUID"
+for module in ahci sd_mod usb_storage uas xhci_pci virtio_pci virtio_blk raid1 ext4; do
+    modprobe "$module" || rescue "required module failed: $module"
+done
+# uevent PARTUUID is kernel partition metadata, not a user-space content probe.
+# Only the six embedded system partition identities may be opened by mdadm.
+count=0
+while [ "$count" -lt 60 ]; do
+    members=
+    found=0
+    for wanted in $SYSTEM_PARTUUIDS; do
+        candidate=
+        for event in /sys/class/block/*/uevent; do
+            grep -q "^PARTUUID=$wanted$" "$event" || continue
+            [ -z "$candidate" ] || rescue 'duplicate allowed PARTUUID'
+            name=${event%/uevent}; name=${name##*/}
+            [ "$(cat "/sys/class/block/$name/partition")" = 1 ] || rescue 'root member is not partition 1'
+            candidate=/dev/$name
+        done
+        if [ -n "$candidate" ]; then
+            members="$members $candidate"
+            found=$((found + 1))
+        fi
+    done
+    [ "$found" -ge 5 ] && break
+    count=$((count + 1)); sleep 1
+done
+[ "$found" -ge 5 ] || rescue 'fewer than five permitted root members'
+for member in $members; do
+    metadata=$(mdadm --examine --export "$member") || rescue 'root member metadata unavailable'
+    echo "$metadata" | grep -q "^MD_UUID=$SYSTEM_MD_UUID$" || rescue 'root MD UUID mismatch'
+    echo "$metadata" | grep -q '^MD_LEVEL=raid1$' || rescue 'root member is not RAID1'
+done
+# Explicit node + UUID + explicit verified members; never --scan or --incremental.
+[ -b /dev/md0 ] || mknod /dev/md0 b 9 0
+mdadm --assemble /dev/md0 --uuid="$SYSTEM_MD_UUID" --run $members || rescue 'root assembly failed'
+[ "$(cat /sys/class/block/md0/md/level)" = raid1 ] || rescue 'assembled level mismatch'
+[ "$(cat /sys/class/block/md0/md/metadata_version)" = 1.2 ] || rescue 'metadata version mismatch'
+# Query only this permitted assembled device, before any filesystem mount.
+[ "$(blkid -s UUID -o value /dev/md0)" = "$ROOT_FS_UUID" ] || rescue 'root filesystem UUID mismatch'
+mount -t ext4 -o rw,noatime /dev/md0 /newroot || rescue 'persistent root mount failed'
+[ "$(cat /newroot/etc/tenerix/root-fs-uuid)" = "$ROOT_FS_UUID" ] || rescue 'root identity marker mismatch'
+mkdir -p /newroot/run
+mount --move /run /newroot/run
+printf '%s\n' "$slot" > /newroot/run/tenerix-generation
+printf '%s\n' "$BUILD_ID" > /newroot/run/tenerix-build
+for point in dev proc sys; do mount --move "/$point" "/newroot/$point" || rescue 'mount transfer failed'; done
+echo "TENERIX_SWITCH_ROOT generation=$slot build=$BUILD_ID device=/dev/md0 fs=ext4"
+exec switch_root /newroot /sbin/init

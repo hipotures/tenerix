@@ -1,0 +1,21 @@
+SERIAL 0 115200 0
+CONSOLE 1
+PROMPT 1
+TIMEOUT 30
+TOTALTIMEOUT 30
+DEFAULT current
+ONTIMEOUT current
+ONERROR previous
+SAY Tenerix Zero RN426 prototype: current=@CURRENT_BUILD@ previous=@PREVIOUS_BUILD@ recovery=RAM only
+LABEL current
+  LINUX /@CURRENT_SLOT@/@CURRENT_KERNEL@
+  INITRD /@CURRENT_SLOT@/@CURRENT_UCODE@,/@CURRENT_SLOT@/@CURRENT_INITRAMFS@
+  APPEND console=tty0 console=ttyS0,115200n8 panic=0 raid=noautodetect tenerix.slot=@CURRENT_SLOT@
+LABEL previous
+  LINUX /@PREVIOUS_SLOT@/@PREVIOUS_KERNEL@
+  INITRD /@PREVIOUS_SLOT@/@PREVIOUS_UCODE@,/@PREVIOUS_SLOT@/@PREVIOUS_INITRAMFS@
+  APPEND console=tty0 console=ttyS0,115200n8 panic=0 raid=noautodetect tenerix.slot=@PREVIOUS_SLOT@
+LABEL recovery
+  LINUX /rescue/@RESCUE_KERNEL@
+  INITRD /rescue/@RESCUE_INITRAMFS@
+  APPEND console=tty0 console=ttyS0,115200n8 panic=0 raid=noautodetect
