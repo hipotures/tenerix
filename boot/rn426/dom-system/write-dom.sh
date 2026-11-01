@@ -47,9 +47,9 @@ awk -v d="$dev" 'index($1, d) == 1 { print $2 }' /proc/mounts | sort -r | while 
 done
 if awk -v d="$dev" 'index($1, d) == 1' /proc/mounts | grep -q .; then fail 'DOM is still mounted'; fi
 
-printf 'Type TAK to overwrite the whole DOM %s: ' "$dev"
+printf 'Type YES to overwrite the whole DOM %s: ' "$dev"
 read -r answer
-[ "$answer" = TAK ] || fail 'not confirmed; nothing written'
+[ "$answer" = YES ] || fail 'not confirmed; nothing written'
 
 dd if="$image" of="$dev" bs=1M conv=fsync
 sync

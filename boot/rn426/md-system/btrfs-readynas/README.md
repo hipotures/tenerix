@@ -1,6 +1,6 @@
 # ReadyNAS root flag 0x10000 on the data volume
 
-ReadyNAS OS 6 sets bit 16 (`0x10000`) in the `ROOT_ITEM` flags of the share subvolume `Archiwum`
+ReadyNAS OS 6 sets bit 16 (`0x10000`) in the `ROOT_ITEM` flags of the affected share subvolume
 (root 9054). Stock Linux 6.18 rejects it in `tree-checker.c` ("invalid root flags"), so that
 subvolume returns I/O errors. Both DUP metadata copies carry the same value. All other
 subvolumes have flags `0x0`.
@@ -8,7 +8,7 @@ subvolumes have flags `0x0`.
 * `tenerix-readynas-tolerate.patch`: the tree checker accepts bit 16 and changes nothing else.
   Built out of tree against Alpine linux-lts 6.18.59 (vanilla btrfs: Alpine has no btrfs
   patches). It is loaded by hand with `insmod` instead of the stock btrfs module. Used
-  read-only: `Archiwum` mounts and reads.
+  read-only: the affected share mounts and reads.
 * `tenerix-readynas-root-flag.patch`: additionally clears the bit in memory when a root is
   loaded, so it is written out on the next update of that subvolume. **Not used.** Whether to
   clear the bit on disk is still open: its exact NETGEAR meaning (snapshot related) is unknown.
@@ -26,6 +26,21 @@ Source: `ReadyNASOS_V6.10.6_WW_src.zip` (archive.org collection `netgearfirmware
   subvolume queue inodes for background auto-defragmentation.
 
 So `0x10000` is a per-share "auto-defrag" switch. It has no on-disk structural meaning.
-Clearing it only stops ReadyNAS-style automatic defragmentation of `Archiwum`; mainline offers
+Clearing it only stops ReadyNAS-style automatic defragmentation of that share; mainline offers
 the same behaviour filesystem-wide with `-o autodefrag`. After clearing, the stock Alpine kernel
 reads the volume without any patch.
+
+## License and source attribution
+
+Both patches are licensed under GPL-2.0-only, matching the upstream Linux Btrfs
+files they modify. `tree-checker.c` carries a copyright notice for Qu Wenruo
+(2017); `disk-io.c` carries a copyright notice for Oracle (2007). Existing upstream
+notices remain applicable. The local functional changes are dated 2026-10-31 in
+the patch headers.
+
+Upstream source references:
+[tree-checker.c](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/fs/btrfs/tree-checker.c?h=v6.18)
+and [disk-io.c](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/fs/btrfs/disk-io.c?h=v6.18).
+The full GPL version 2 text is provided in
+[COPYING](../../../../hardware/it8613e/COPYING). See the repository
+[licensing scope](../../../../LICENSING.md) for other components.

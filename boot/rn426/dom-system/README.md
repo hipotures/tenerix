@@ -44,7 +44,7 @@ ssh root@192.168.1.115 sh /tmp/write-dom.sh /tmp/tenerix-rn426-dom-system.img <s
 ```
 
 `write-dom.sh` checks the image hash, finds the DOM only as USB 1-2 `13fe:5200` with 491,520
-sectors, prints its current hash, unmounts it, asks for `TAK`, writes it with `dd`, then
+sectors, prints its current hash, unmounts it, asks for `YES`, writes it with `dd`, then
 verifies by read-back. Restoring the factory DOM works the same way, using
 `artifacts/dom/readynas-rn426-original-240m.img` and
 `40056ae60cf7bbae0b7945797066db7ae7665fb5da1f62e009ae4d0f1355dea7`.
