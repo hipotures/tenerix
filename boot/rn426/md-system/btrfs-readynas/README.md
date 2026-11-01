@@ -11,12 +11,22 @@ subvolumes have flags `0x0`.
   read-only: the affected share mounts and reads.
 * `tenerix-readynas-root-flag.patch`: additionally clears the bit in memory when a root is
   loaded, so it is written out on the next update of that subvolume. **Not used.** Whether to
-  clear the bit on disk is still open: its exact NETGEAR meaning (snapshot related) is unknown.
+  clear the bit on disk remains a separate operational decision. Its auto-defragmentation
+  meaning is established by the source analysis below.
 
 ## Meaning of the flag (from NETGEAR's GPL source)
 
-Source: `ReadyNASOS_V6.10.6_WW_src.zip` (archive.org collection `netgearfirmwaresgpl`), tree
-`linux-4.4.218-x86_64`, the same kernel line as the RN426 firmware 6.10.10 (4.4.218.x86_64.1).
+Source: [ReadyNASOS_V6.10.6_WW_src.zip](https://archive.org/download/netgearfirmwaresgpl/ReadyNASOS_V6.10.6_WW_src.zip),
+preserved in the Internet Archive [netgearfirmwaresgpl collection](https://archive.org/details/netgearfirmwaresgpl).
+The analysis used the `linux-4.4.218-x86_64` tree, the same kernel line as the RN426
+firmware 6.10.10 (4.4.218.x86_64.1), rather than an assertion that the two firmware
+versions have identical source.
+
+NETGEAR's [official GPL source catalog](https://www.downloads.netgear.com/files/GDC/2649_GPLv1.html)
+still lists ReadyNAS OS 6.10.6. Its original ZIP download returned HTTP 404 when checked
+on 2026-11-01; the archive mirror served a byte-range request successfully. This
+repository links to the source archive without redistributing it or applying CC0
+to its contents. Individual components retain their original licenses.
 
 * `include/uapi/linux/btrfs.h`: `#define BTRFS_SUBVOL_AUTO_DEFRAG (1ULL << 16)`.
 * `fs/btrfs/ioctl.c`: `BTRFS_IOC_SUBVOL_SETFLAGS` / `GETFLAGS` copy this bit straight into and out

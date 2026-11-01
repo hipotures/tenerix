@@ -21,8 +21,10 @@ the RN426, rather than a ready-to-install general-purpose NAS distribution.
   QEMU fixtures for boot and failure testing.
 - Added a disk-system build, kernel-update integration, fan monitoring and thermal
   guards, a front-panel status daemon, and a login status summary.
-- Investigated a ReadyNAS-specific Btrfs subvolume flag and prepared compatibility
-  patches for upstream Linux.
+- Identified the ReadyNAS-specific Btrfs flag `0x10000` as a per-subvolume
+  auto-defragmentation switch and prepared compatibility patches for upstream Linux.
+  The [analysis and conclusions](boot/rn426/md-system/btrfs-readynas/README.md#meaning-of-the-flag-from-netgears-gpl-source)
+  include links to the archived NETGEAR source package.
 
 The reports describe particular stages of the work. Earlier statements such as
 “not loaded” or “not tested on hardware” belong to their recorded stage; later
