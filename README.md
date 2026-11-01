@@ -9,6 +9,27 @@ This repository contains investigation records, source code, build tools,
 kernel patches, and selected test evidence. It is a development workspace for
 the RN426, rather than a ready-to-install general-purpose NAS distribution.
 
+## Why this project exists
+
+The main motivation is the end of vendor updates for otherwise usable hardware.
+NETGEAR identifies [ReadyNAS systems and software as end-of-life](https://kb.netgear.com/20684),
+and its [support page](https://www.netgear.com/support/product/readynas_os_6)
+still lists **ReadyNAS OS 6.10.10** as the latest release as of November 1, 2026.
+That release dates from **January 2024**; its public availability is documented
+in a [January 28, 2024 release discussion](https://community.netgear.com/discussions/readynas-general/readynas-os-6-10-10-released/2359744).
+The release notes page's later edit date is not the firmware release date.
+
+The [factory baseline](readynas-rn426-audit.md) uses Debian 8 Jessie and a
+NETGEAR Linux 4.4.218-based kernel. Meanwhile, Linux kernel and userspace CVEs
+continue to be disclosed and fixed in maintained distributions. For example,
+[Debian's September 29, 2026 kernel advisory](https://www.debian.org/security/2026/dsa-6528)
+addresses a large batch of CVEs, and the kernel project documents its
+[ongoing CVE publication process](https://docs.kernel.org/process/cve.html).
+The goal is to regain a maintained OS and a regular security-update path while
+keeping the RN426 useful. These disclosures motivate continued maintenance;
+whether a particular CVE affects the factory firmware depends on its code,
+vendor patches, configuration, and enabled features.
+
 ## Why Alpine
 
 Both Debian and Alpine were booted on the physical RN426 to evaluate operation
