@@ -19,7 +19,7 @@ That release dates from **January 2024**; its public availability is documented
 in a [January 28, 2024 release discussion](https://community.netgear.com/discussions/readynas-general/readynas-os-6-10-10-released/2359744).
 The release notes page's later edit date is not the firmware release date.
 
-The [factory baseline](readynas-rn426-audit.md) uses Debian 8 Jessie and a
+The [factory baseline](docs/audits/readynas-rn426-audit.md) uses Debian 8 Jessie and a
 NETGEAR Linux 4.4.218-based kernel. Meanwhile, Linux kernel and userspace CVEs
 continue to be disclosed and fixed in maintained distributions. For example,
 [Debian's September 29, 2026 kernel advisory](https://www.debian.org/security/2026/dsa-6528)
@@ -34,8 +34,8 @@ vendor patches, configuration, and enabled features.
 
 Both Debian and Alpine were booted on the physical RN426 to evaluate operation
 and hardware support. The recorded test environments were
-[Debian 13.7 Standard Live](readynas-rn426-debian13-audit.md) and
-[Alpine 3.24.3 Standard](readynas-rn426-alpine-audit.md). These version numbers
+[Debian 13.7 Standard Live](docs/audits/readynas-rn426-debian13-audit.md) and
+[Alpine 3.24.3 Standard](docs/audits/readynas-rn426-alpine-audit.md). These version numbers
 identify the tested releases; the reports distinguish working hardware from
 features requiring custom drivers or further testing.
 
@@ -89,10 +89,10 @@ Click an image to view it at full resolution.
 
 | Topic | Entry point |
 |---|---|
-| Factory hardware and storage baseline | [ReadyNAS audit](readynas-rn426-audit.md) |
-| Factory boot chain and recovery investigation | [Boot audit](readynas-rn426-boot-audit.md) |
-| Debian Live compatibility | [Debian audit](readynas-rn426-debian13-audit.md) |
-| Alpine Live compatibility and system design | [Alpine audit](readynas-rn426-alpine-audit.md) |
+| Factory hardware and storage baseline | [ReadyNAS audit](docs/audits/readynas-rn426-audit.md) |
+| Factory boot chain and recovery investigation | [Boot audit](docs/audits/readynas-rn426-boot-audit.md) |
+| Debian Live compatibility | [Debian audit](docs/audits/readynas-rn426-debian13-audit.md) |
+| Alpine Live compatibility and system design | [Alpine audit](docs/audits/readynas-rn426-alpine-audit.md) |
 | IT8613E driver sources, backport, and verification | [Driver documentation](hardware/it8613e/README.md) |
 | Alpine driver build and packaging | [Alpine driver documentation](hardware/it8613e/alpine/README.md) |
 | OLED, buttons, and panel adapter | [Front-panel documentation](hardware/front-panel/README.md) |

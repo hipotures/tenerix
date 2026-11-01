@@ -1,6 +1,6 @@
 # Alpine 3.24.3 RN426 serial-console Live ISO
 
-Built and tested on the development computer on 2026-10-31. **No connection to the NAS, physical-device write, host package installation or distribution upgrade was performed.** Baselines: [RN426 boot audit](../../readynas-rn426-boot-audit.md) and [Debian UART evidence](../../readynas-rn426-debian13-audit.md).
+Built and tested on the development computer on 2026-10-31. **No connection to the NAS, physical-device write, host package installation or distribution upgrade was performed.** Baselines: [RN426 boot audit](../../docs/audits/readynas-rn426-boot-audit.md) and [Debian UART evidence](../../docs/audits/readynas-rn426-debian13-audit.md).
 
 ## Finished artifact
 

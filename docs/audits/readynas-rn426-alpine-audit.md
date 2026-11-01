@@ -10,7 +10,7 @@ Evidence classifications:
 - **INFERRED** — a supported engineering assessment, not an experimental result.
 - **UNKNOWN / NOT TESTED** — insufficient evidence or a test outside this authorization.
 
-Baselines read: [factory hardware audit](readynas-rn426-audit.md), [factory boot audit](readynas-rn426-boot-audit.md), [Debian Live audit](readynas-rn426-debian13-audit.md), [IT8613E build investigation](hardware/it8613e/README.md), [panel implementation and hardware results](hardware/front-panel/README.md), and [serial Alpine ISO build](hardware/alpine-serial/README.md). Their historical findings are preserved. Later operator-reported Debian PWM tests supplement the earlier build-only driver report; they are not Alpine results.
+Baselines read: [factory hardware audit](readynas-rn426-audit.md), [factory boot audit](readynas-rn426-boot-audit.md), [Debian Live audit](readynas-rn426-debian13-audit.md), [IT8613E build investigation](../../hardware/it8613e/README.md), [panel implementation and hardware results](../../hardware/front-panel/README.md), and [serial Alpine ISO build](../../hardware/alpine-serial/README.md). Their historical findings are preserved. Later operator-reported Debian PWM tests supplement the earlier build-only driver report; they are not Alpine results.
 
 ## 1. Executive summary and exact Alpine environment
 

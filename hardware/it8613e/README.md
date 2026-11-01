@@ -8,7 +8,7 @@ Date: 2026-10-31. Target: **6.12.107+deb13-amd64**, Debian kernel package **6.12
 
 **Load recommendation:** the binary passes static ABI checks, but a first load is **not approved as safe on the current production-connected chassis**. Initialization is not read-only. Resolve cooling recovery and firmware-ownership questions, then arrange an isolated supervised test before authorizing loading. Successful compilation does not validate temperature accuracy, tachometer scaling, pin mapping or cooling behavior.
 
-Evidence labels used here: **VERIFIED** (actual build/inspection), **SOURCE FACT** (pinned source), **INFERRED**, **UNKNOWN**, **REQUIRES TEST**. Earlier evidence remains in the [factory audit](../../readynas-rn426-audit.md), [boot audit](../../readynas-rn426-boot-audit.md), and [Debian Live audit](../../readynas-rn426-debian13-audit.md).
+Evidence labels used here: **VERIFIED** (actual build/inspection), **SOURCE FACT** (pinned source), **INFERRED**, **UNKNOWN**, **REQUIRES TEST**. Earlier evidence remains in the [factory audit](../../docs/audits/readynas-rn426-audit.md), [boot audit](../../docs/audits/readynas-rn426-boot-audit.md), and [Debian Live audit](../../docs/audits/readynas-rn426-debian13-audit.md).
 
 ## Files and reproducibility
 

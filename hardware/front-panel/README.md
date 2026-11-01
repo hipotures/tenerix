@@ -4,7 +4,7 @@ Date: 2026-10-31. Target: NETGEAR ReadyNAS 426, Atom C3538, Debian 13.7 Live, ke
 
 **VERIFIED:** the operator saw **Debian 13 / RN426 ready** on the OLED. All five navigation buttons generated recognized events. The operator also confirmed the display changed to **Button / direction**, including **CENTER** for the middle button. The bounded test captured 16 events and 16 MCU reads; all five buttons appeared at least twice. A small reusable Python interface and JSON event CLI are provided here. No service was installed or enabled.
 
-The existing IT8613E module was already loaded when this task began. This task did not load, unload, replace or configure it. The earlier [driver build report](../it8613e/README.md) describes an earlier preparation-only phase; its historical statement that the module was not loaded is not a description of this later session. The [factory audit](../../readynas-rn426-audit.md) and [Debian audit](../../readynas-rn426-debian13-audit.md) are hardware baselines, not overwritten findings.
+The existing IT8613E module was already loaded when this task began. This task did not load, unload, replace or configure it. The earlier [driver build report](../it8613e/README.md) describes an earlier preparation-only phase; its historical statement that the module was not loaded is not a description of this later session. The [factory audit](../../docs/audits/readynas-rn426-audit.md) and [Debian audit](../../docs/audits/readynas-rn426-debian13-audit.md) are hardware baselines, not overwritten findings.
 
 ## Files and pinned dependency
 
