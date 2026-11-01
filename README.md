@@ -9,6 +9,24 @@ This repository contains investigation records, source code, build tools,
 kernel patches, and selected test evidence. It is a development workspace for
 the RN426, rather than a ready-to-install general-purpose NAS distribution.
 
+## Why Alpine
+
+Both Debian and Alpine were booted on the physical RN426 to evaluate operation
+and hardware support. The recorded test environments were
+[Debian 13.7 Standard Live](readynas-rn426-debian13-audit.md) and
+[Alpine 3.24.3 Standard](readynas-rn426-alpine-audit.md). These version numbers
+identify the tested releases; the reports distinguish working hardware from
+features requiring custom drivers or further testing.
+
+Alpine was selected to keep the installed system small enough for the existing
+approximately **4 GiB system RAID1**, while retaining the factory partition and
+RAID layout and the existing data-volume structure. The design uses the internal
+DOM for boot assets and the existing system mirror for the OS, avoiding partition
+resizing or taking space from the data volume. Replacing the OS changes the
+system filesystem and its contents; preserving the layout does not mean keeping
+the factory OS intact. This was a footprint and storage-layout decision, rather
+than a finding that Debian could not boot on the hardware.
+
 ## Work covered
 
 - Investigated the factory hardware, boot process, RAID, and filesystem layout.
