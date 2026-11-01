@@ -29,6 +29,21 @@ The reports describe particular stages of the work. Earlier statements such as
 hardware-test records document subsequent results. QEMU results and physical
 hardware observations are identified separately.
 
+## Gallery
+
+Selected console captures from the RN426 investigation on October 31, 2026.
+Click an image to view it at full resolution.
+
+| Firmware information | Boot device priorities |
+|---|---|
+| [![AMI Aptio firmware information showing the RN26 project version and 4096 MB DDR4 memory](docs/screenshots/bios-information.png)](docs/screenshots/bios-information.png) | [![Firmware boot priorities showing USB, SATA, UEFI, and built-in shell entries](docs/screenshots/bios-boot-priorities.png)](docs/screenshots/bios-boot-priorities.png) |
+| Firmware version, build date, and installed memory. | Available boot targets and their configured order. |
+
+| Factory boot loader | Debian serial console |
+|---|---|
+| [![SYSLINUX 6.03 loading the factory kernel and initramfs](docs/screenshots/factory-syslinux-boot.png)](docs/screenshots/factory-syslinux-boot.png) | [![Debian Live boot menu with console=tty0 and console=ttyS0,115200n8 kernel arguments](docs/screenshots/debian-serial-console.png)](docs/screenshots/debian-serial-console.png) |
+| The factory SYSLINUX loader reports successful kernel and initramfs loading. | Debian Live boot parameters configured for a 115200-baud serial console. |
+
 ## Documentation index
 
 | Topic | Entry point |
