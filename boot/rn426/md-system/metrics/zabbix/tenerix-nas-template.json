@@ -324,6 +324,74 @@
       ]
      },
      {
+      "uuid": "f2313213e17c4f3682bb16cd90599e22",
+      "name": "CPU time, all modes",
+      "type": "DEPENDENT",
+      "key": "tenerix.cpu.total",
+      "delay": "0",
+      "value_type": "FLOAT",
+      "units": "s/s",
+      "description": "CPU seconds per second over all modes = number of cores.",
+      "preprocessing": [
+       {
+        "type": "PROMETHEUS_PATTERN",
+        "parameters": [
+         "tenerix_cpu_seconds_total",
+         "function",
+         "sum"
+        ]
+       },
+       {
+        "type": "CHANGE_PER_SECOND",
+        "parameters": [
+         ""
+        ]
+       }
+      ],
+      "master_item": {
+       "key": "tenerix.federate"
+      },
+      "tags": [
+       {
+        "tag": "component",
+        "value": "cpu"
+       }
+      ]
+     },
+     {
+      "uuid": "f14436493d0948eba729e51c21da368d",
+      "name": "CPU utilization",
+      "type": "CALCULATED",
+      "key": "tenerix.cpu.util",
+      "delay": "1m",
+      "value_type": "FLOAT",
+      "units": "%",
+      "params": "100-100*last(//tenerix.cpu.idle)/last(//tenerix.cpu.total)",
+      "description": "Same name as in the Linux templates, so dashboard \"Top hosts\" widgets list the NAS.",
+      "tags": [
+       {
+        "tag": "component",
+        "value": "cpu"
+       }
+      ]
+     },
+     {
+      "uuid": "c38ad77c22124259b0ef4680980ad500",
+      "name": "Memory utilization",
+      "type": "CALCULATED",
+      "key": "tenerix.mem.util",
+      "delay": "1m",
+      "value_type": "FLOAT",
+      "units": "%",
+      "params": "100-100*last(//tenerix.mem.available)/last(//tenerix.mem.total)",
+      "tags": [
+       {
+        "tag": "component",
+        "value": "memory"
+       }
+      ]
+     },
+     {
       "uuid": "7a47782c8e66453da9446e732bf52be3",
       "name": "Kernel release",
       "type": "DEPENDENT",

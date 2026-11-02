@@ -31,7 +31,8 @@ def uid(*parts: str) -> str:
 
 
 def pattern(selector: str, discard_on_fail: bool = False, extra: list | None = None) -> list:
-    steps = [{'type': 'PROMETHEUS_PATTERN', 'parameters': [selector, 'value', '']}]
+    output = ['function', 'sum'] if selector == 'tenerix_cpu_seconds_total' else ['value', '']
+    steps = [{'type': 'PROMETHEUS_PATTERN', 'parameters': [selector, *output]}]
     if discard_on_fail:
         steps[0].update(error_handler='DISCARD_VALUE')
     return steps + (extra or [])
@@ -111,6 +112,17 @@ def build() -> dict:
              extra=PER_SECOND, description='Idle CPU seconds per second (4 = all four cores idle).'),
         item('CPU iowait', 'tenerix.cpu.iowait', sel('tenerix_cpu_seconds_total', mode='iowait'), units='s/s', component='cpu',
              extra=PER_SECOND),
+        item('CPU time, all modes', 'tenerix.cpu.total', 'tenerix_cpu_seconds_total', units='s/s', component='cpu',
+             extra=PER_SECOND, description='CPU seconds per second over all modes = number of cores.'),
+        {'uuid': uid('item', 'tenerix.cpu.util'), 'name': 'CPU utilization', 'type': 'CALCULATED',
+         'key': 'tenerix.cpu.util', 'delay': '1m', 'value_type': 'FLOAT', 'units': '%',
+         'params': '100-100*last(//tenerix.cpu.idle)/last(//tenerix.cpu.total)',
+         'description': 'Same name as in the Linux templates, so dashboard "Top hosts" widgets list the NAS.',
+         'tags': [{'tag': 'component', 'value': 'cpu'}]},
+        {'uuid': uid('item', 'tenerix.mem.util'), 'name': 'Memory utilization', 'type': 'CALCULATED',
+         'key': 'tenerix.mem.util', 'delay': '1m', 'value_type': 'FLOAT', 'units': '%',
+         'params': '100-100*last(//tenerix.mem.available)/last(//tenerix.mem.total)',
+         'tags': [{'tag': 'component', 'value': 'memory'}]},
         item('Kernel release', 'tenerix.kernel', 'tenerix_kernel_info', value_type='CHAR', component='system', label='release',
              triggers=[(f'change({T}tenerix.kernel)=1', 'NAS kernel changed', 'INFO')]),
         item('Alpine release', 'tenerix.os', 'tenerix_os_info', value_type='CHAR', component='system', label='version_id'),
