@@ -40,6 +40,7 @@ from typing import Callable, Iterable, Iterator
 VERSION = '0.1.0'
 DEFAULT_CONFIG = '/etc/tenerix/metrics.conf'
 PREFIX = 'tenerix_'
+MIN_INTERVAL = 60   # seconds; nothing is sent more often
 
 
 def log(message: str) -> None:
@@ -684,6 +685,8 @@ def load_config(path: str) -> Config:
             cfg.endpoint = value
         elif key in ('interval', 'timeout'):
             setattr(cfg, key, float(value))
+            if key == 'interval' and cfg.interval < MIN_INTERVAL:
+                raise SystemExit(f'{path}:{number}: interval must be at least {MIN_INTERVAL} s')
         elif key == 'disable':
             cfg.disabled = tuple(v for v in re.split(r'[\s,]+', value) if v)
         else:

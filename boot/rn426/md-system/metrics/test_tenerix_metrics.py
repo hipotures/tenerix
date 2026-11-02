@@ -383,15 +383,24 @@ class AgentTests(TreeTest):
 class ConfigTests(unittest.TestCase):
     def test_parse(self):
         with tempfile.NamedTemporaryFile('w', suffix='.conf', delete=False) as f:
-            f.write('# comment\nendpoint = http://collector:4318/v1/metrics\ninterval = 30\ndisable = smart, nfs\n')
+            f.write('# comment\nendpoint = http://collector:4318/v1/metrics\ninterval = 120\ndisable = smart, nfs\n')
         try:
             cfg = tm.load_config(f.name)
         finally:
             os.unlink(f.name)
         self.assertEqual(cfg.endpoint, 'http://collector:4318/v1/metrics')
-        self.assertEqual(cfg.interval, 30)
+        self.assertEqual(cfg.interval, 120)
         self.assertEqual(cfg.disabled, ('smart', 'nfs'))
         self.assertNotIn('smart', [c.name for c in tm.build_collectors(cfg.disabled)])
+
+    def test_interval_below_minimum_rejected(self):
+        with tempfile.NamedTemporaryFile('w', suffix='.conf', delete=False) as f:
+            f.write('interval = 10\n')
+        try:
+            with self.assertRaises(SystemExit):
+                tm.load_config(f.name)
+        finally:
+            os.unlink(f.name)
 
     def test_missing_file_and_unknown_collector(self):
         self.assertEqual(tm.load_config('/nonexistent').endpoint, '')

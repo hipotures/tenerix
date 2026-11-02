@@ -1,7 +1,7 @@
 # /etc/tenerix/metrics.conf — tenerix-metrics configuration (key = value).
 # OTLP/HTTP metrics endpoint of the OpenTelemetry Collector (required).
 endpoint = http://COLLECTOR:4318/v1/metrics
-# Seconds between cycles; slow collectors (smart, info) keep their own interval.
+# Seconds between exports, at least 60; slow collectors (smart 10 min, info 1 h) read less often.
 interval = 60
 # HTTP timeout in seconds.
 timeout = 10
