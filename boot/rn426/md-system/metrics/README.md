@@ -47,3 +47,17 @@ Log: `/var/log/tenerix-metrics.log` (state changes only).
 * Destination (e.g. the front panel): subclass `Sink` and add it in `build_sinks()`.
 
 Tests: `python3 -m unittest test_tenerix_metrics.py`.
+
+## Zabbix
+
+`zabbix/build-template.py` generates `zabbix/tenerix-nas-template.json`, the template
+"Tenerix NAS by Prometheus": one HTTP agent item reads `{$PROM.URL}/federate` for
+`{job="tenerix-metrics",host_name="{$TENERIX.HOSTNAME}"}` every minute; all other items are
+dependent (Prometheus pattern) and LLD rules discover RAID arrays, LUKS volumes, file systems
+and their error counters, SMART disks, interfaces, temperature sensors, fans and collectors.
+Thresholds are `{$TENERIX.*}` macros. Set `{$PROM.URL}` on the host.
+
+```sh
+zabbix/build-template.py                                   # regenerate the JSON
+zabbix/build-template.py --import http://ZABBIX TOKENFILE  # and import (create/update)
+```
