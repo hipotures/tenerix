@@ -12,6 +12,21 @@ UCODE=/g1/ucode-c3538.cpio
 APPEND='console=tty0 console=ttyS0,115200n8 panic=0 raid=noautodetect'
 log() { echo "tenerix-kernel-update: $*"; logger -t tenerix-kernel-update "$*" 2>/dev/null || true; }
 die() { log "ERROR: $*"; exit 1; }
+# Leave the DOM unmounted unless it was already mounted: a FAT left mounted read/write keeps
+# its dirty bit across reboots (the kernel does not clear a bit that was set at mount time).
+tmp=
+mounted_here=
+cleanup() {
+    [ -z "$tmp" ] || rm -rf "$tmp"
+    if [ -n "$mounted_here" ]; then
+        sync
+        umount "$DOM" || log "WARNING: could not unmount the DOM at $DOM"
+    fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM HUP
+# Read back from the device, not from the page cache.
+drop_caches() { sync; echo 3 > /proc/sys/vm/drop_caches; }
 
 new=$(cat /usr/share/kernel/lts/kernel.release 2>/dev/null) || die 'linux-lts is not installed'
 [ -f /boot/vmlinuz-lts ] || die '/boot/vmlinuz-lts missing'
@@ -35,6 +50,7 @@ if ! grep -q " $DOM vfat " /proc/mounts; then
     [ -n "$dev" ] || die 'DOM partition not found'
     mkdir -p "$DOM"
     mount -t vfat -o rw,noatime "$dev" "$DOM" || die 'DOM mount failed'
+    mounted_here=1
 fi
 if grep -q "^  LINUX /k/$new/vmlinuz$" "$DOM/SYSLINUX.CFG" 2>/dev/null \
    && [ -f "$DOM/k/$new/vmlinuz" ] && [ -f "$DOM/k/$new/initramfs" ]; then
@@ -57,7 +73,6 @@ depmod "$new"
 
 # 2. initramfs that assembles only the system mirror
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
 mkinitfs -q -P /etc/tenerix/initramfs -F mdroot -i /etc/tenerix/initramfs/init -o "$tmp/initramfs" "$new" \
     || die 'mkinitfs failed'
 listing=$(gzip -dc "$tmp/initramfs" | cpio -it 2>/dev/null)
@@ -99,8 +114,7 @@ fi
 mkdir -p "$DOM/k/$new"
 cp /boot/vmlinuz-lts "$DOM/k/$new/vmlinuz.new"
 cp "$tmp/initramfs" "$DOM/k/$new/initramfs.new"
-sync
-echo 3 > /proc/sys/vm/drop_caches
+drop_caches
 [ "$(sha256sum < /boot/vmlinuz-lts)" = "$(sha256sum < "$DOM/k/$new/vmlinuz.new")" ] || die 'kernel read-back mismatch'
 [ "$(sha256sum < "$tmp/initramfs")" = "$(sha256sum < "$DOM/k/$new/initramfs.new")" ] || die 'initramfs read-back mismatch'
 mv -f "$DOM/k/$new/vmlinuz.new" "$DOM/k/$new/vmlinuz"
@@ -109,17 +123,22 @@ sync
 
 # 4. boot menu: only the disk entries change; recovery (and dom entries, if present) are kept.
 {
-    printf 'SERIAL 0 115200 0\nCONSOLE 1\nPROMPT 1\nTIMEOUT 30\nTOTALTIMEOUT 30\n'
-    printf 'DEFAULT disk\nONTIMEOUT disk\nONERROR disk-previous\n'
-    printf 'SAY Tenerix Zero RN426: disk (%s) / disk-previous / dom / dom-previous / recovery\n' "$new"
     printf 'LABEL disk\n  LINUX /k/%s/vmlinuz\n  INITRD %s,/k/%s/initramfs\n  APPEND %s\n' "$new" "$UCODE" "$new" "$APPEND"
     printf 'LABEL disk-previous\n  LINUX %s\n  INITRD %s,%s\n  APPEND %s\n' "$prev_kernel" "$UCODE" "$prev_initrd" "$APPEND"
     awk -v g0="$([ -d "$DOM/g0" ] && echo yes)" \
         '$1=="LABEL"{on=($2=="dom"||($2=="dom-previous"&&g0=="yes")||$2=="recovery")} on' "$DOM/SYSLINUX.CFG"
+} > "$tmp/entries"
+grep -q '^LABEL recovery$' "$tmp/entries" || die 'recovery entry missing'
+# The banner lists exactly the entries present in the menu.
+labels=$(awk '$1=="LABEL"{printf "%s%s", s, $2; s=" / "}' "$tmp/entries")
+{
+    printf 'SERIAL 0 115200 0\nCONSOLE 1\nPROMPT 1\nTIMEOUT 30\nTOTALTIMEOUT 30\n'
+    printf 'DEFAULT disk\nONTIMEOUT disk\nONERROR disk-previous\n'
+    printf 'SAY Tenerix Zero RN426 (disk: %s): %s\n' "$new" "$labels"
+    cat "$tmp/entries"
 } > "$tmp/SYSLINUX.CFG"
-grep -q '^LABEL recovery$' "$tmp/SYSLINUX.CFG" || die 'recovery entry missing'
 cp "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW"
-sync
+drop_caches
 cmp -s "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW" || die 'boot menu read-back mismatch'
 mv -f "$DOM/SYSLINUX.NEW" "$DOM/SYSLINUX.CFG"
 sync
