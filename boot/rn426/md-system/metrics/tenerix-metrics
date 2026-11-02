@@ -427,6 +427,9 @@ class SmartCollector(Collector):
                   9: ('smart_power_on_hours', ''), 4: ('smart_start_stop_count', ''),
                   193: ('smart_load_cycle_count', '')}
     TEMPERATURE = (194, 190)
+    # Normalized VALUE column: 22 Helium_Level starts at 100 and falls as helium leaks
+    # (WD/HGST helium drives; vendor failure threshold 25).
+    NORMALIZED = {22: 'smart_helium_level'}
 
     def __init__(self):
         self.unsupported: set[str] = set()
@@ -470,10 +473,15 @@ class SmartCollector(Collector):
         if health:
             yield gauge('disk_smart_healthy', int(health.group(1) == 'PASSED'), **labels)
         raw: dict[int, int] = {}
+        normalized: dict[int, int] = {}
         for line in out.splitlines():
-            m = re.match(r'\s*(\d+)\s+\S+\s+0x[0-9a-fA-F]+\s+(?:\S+\s+){6}(\d+)', line)
+            m = re.match(r'\s*(\d+)\s+\S+\s+0x[0-9a-fA-F]+\s+(\d+)\s+(?:\S+\s+){5}(\d+)', line)
             if m:
-                raw[int(m.group(1))] = int(m.group(2))
+                normalized[int(m.group(1))] = int(m.group(2))
+                raw[int(m.group(1))] = int(m.group(3))
+        for attr, name in self.NORMALIZED.items():
+            if attr in normalized:
+                yield gauge(name, normalized[attr], **labels)
         for attr, (name, unit) in self.ATTRIBUTES.items():
             if attr in raw:
                 yield gauge(name, raw[attr], unit, **labels)

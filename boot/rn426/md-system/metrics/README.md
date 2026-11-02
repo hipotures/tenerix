@@ -20,7 +20,7 @@ collectors ──> Agent (schedule, cache, own health) ──> Snapshot ──> 
 | `system` | `/proc` | load, memory, swap, CPU time, uptime |
 | `nfs` | `/proc/fs/nfsd`, `/proc/net/tcp*`, `etab` | server up, threads, exports, clients |
 | `info` | `uname`, `/etc/os-release` | kernel and OS release (read hourly) |
-| `smart` | `smartctl -n standby -H -A` | health, temperature, reallocated/pending/uncorrectable sectors, CRC errors, hours; never spins up a sleeping disk |
+| `smart` | `smartctl -n standby -H -A` | health, temperature, helium level, reallocated/pending/uncorrectable sectors, CRC errors, hours; never spins up a sleeping disk |
 
 All metric names start with `tenerix_`; the resource carries `host.name`, `service.name=tenerix-metrics`.
 Kernel counters are cumulative sums starting at boot (Prometheus adds `_total`).

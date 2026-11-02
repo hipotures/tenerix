@@ -29,6 +29,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
   4 Start_Stop_Count        0x0012   097   097   000    Old_age   Always       -       1357
   5 Reallocated_Sector_Ct   0x0033   100   100   001    Pre-fail  Always       -       2
   9 Power_On_Hours          0x0012   095   095   000    Old_age   Always       -       41381
+ 22 Helium_Level            0x0023   093   093   025    Pre-fail  Always       -       100
 194 Temperature_Celsius     0x0002   037   037   000    Old_age   Always       -       41 (Min/Max 24/55)
 197 Current_Pending_Sector  0x0022   100   100   000    Old_age   Always       -       0
 """
@@ -232,6 +233,7 @@ class SmartTests(TreeTest):
         labels = {'disk': 'sda', 'serial': 'Z2KAKLYT'}
         self.assertEqual(m['disk_temperature_celsius'], [(labels, 41)])
         self.assertEqual(m['smart_reallocated_sectors'], [(labels, 2)])
+        self.assertEqual(m['smart_helium_level'], [(labels, 93)])   # normalized VALUE, not raw
         self.assertEqual(m['disk_smart_healthy'], [(labels, 1)])
         self.assertEqual(m['disk_standby'], [(labels, 0)])
         self.assertEqual(m['disk_info'], [(dict(labels, model='WDC WD120EMFZ-11'), 1)])
