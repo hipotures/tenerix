@@ -4,12 +4,15 @@
 #  2. build the system-mirror initramfs (/etc/tenerix/initramfs)
 #  3. copy kernel + initramfs to the DOM (/k/<release>/), verify by read-back
 #  4. rewrite SYSLINUX.CFG: disk = new kernel, disk-previous = the kernel "disk" used before
-# Run automatically by /etc/apk/commit_hooks.d/tenerix-kernel.hook; safe to run again by hand.
+# Run automatically by /etc/apk/commit_hooks.d/tenerix-kernel.hook after every apk transaction;
+# safe to run again by hand. The release last installed on the DOM is recorded in $STATE, so the
+# DOM is mounted only when the installed kernel changes. --force re-checks the DOM regardless.
 set -eu
 DOM_PARTUUID=fd8988d9-01
 DOM=/media/dom
 UCODE=/g1/ucode-c3538.cpio
 APPEND='console=tty0 console=ttyS0,115200n8 panic=0 raid=noautodetect'
+STATE=/var/lib/tenerix/dom-kernel
 log() { echo "tenerix-kernel-update: $*"; logger -t tenerix-kernel-update "$*" 2>/dev/null || true; }
 die() { log "ERROR: $*"; exit 1; }
 # Leave the DOM unmounted unless it was already mounted: a FAT left mounted read/write keeps
@@ -27,8 +30,21 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM HUP
 # Read back from the device, not from the page cache.
 drop_caches() { sync; echo 3 > /proc/sys/vm/drop_caches; }
+# Remember the release verified on the DOM (written only after a successful check or update).
+record() { mkdir -p "${STATE%/*}"; printf '%s\n' "$new" > "$STATE.new"; mv -f "$STATE.new" "$STATE"; }
+
+force=
+case "${1:-}" in
+    --force) force=1 ;;
+    '') ;;
+    *) die 'usage: tenerix-kernel-update [--force]' ;;
+esac
 
 new=$(cat /usr/share/kernel/lts/kernel.release 2>/dev/null) || die 'linux-lts is not installed'
+if [ -z "$force" ] && [ "$(cat "$STATE" 2>/dev/null)" = "$new" ]; then
+    log "DOM already boots $new (recorded); DOM not mounted"
+    exit 0
+fi
 [ -f /boot/vmlinuz-lts ] || die '/boot/vmlinuz-lts missing'
 [ -d "/lib/modules/$new/kernel" ] || die "modules for $new missing"
 [ -d "/usr/src/linux-headers-$new" ] || die "linux-lts-dev for $new missing (apk add linux-lts-dev)"
@@ -55,6 +71,7 @@ fi
 if grep -q "^  LINUX /k/$new/vmlinuz$" "$DOM/SYSLINUX.CFG" 2>/dev/null \
    && [ -f "$DOM/k/$new/vmlinuz" ] && [ -f "$DOM/k/$new/initramfs" ]; then
     log "DOM already boots $new; nothing to do"
+    record
     exit 0
 fi
 
@@ -142,4 +159,5 @@ drop_caches
 cmp -s "$tmp/SYSLINUX.CFG" "$DOM/SYSLINUX.NEW" || die 'boot menu read-back mismatch'
 mv -f "$DOM/SYSLINUX.NEW" "$DOM/SYSLINUX.CFG"
 sync
+record
 log "DOM now boots $new by default (disk-previous: $prev_kernel); reboot to use it"

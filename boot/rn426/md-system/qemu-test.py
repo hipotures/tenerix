@@ -195,7 +195,16 @@ def upgrade():
             assert 'DOM now boots 6.18.59-0-lts by default' in out, 'update hook did not finish'
             result['hook_output'] = [l for l in out.splitlines() if 'tenerix-kernel' in l]
             guest.expect(PROMPT)
-            out = marker(guest, 'cat /media/dom/SYSLINUX.CFG; ls /lib/modules; modinfo -n it87; '
+            # The update leaves the DOM unmounted; a later run with the same kernel does not mount it.
+            out = marker(guest, 'echo "mounted=$(grep -c " /media/dom " /proc/mounts)"; '
+                         'tenerix-kernel-update; echo "mounted=$(grep -c " /media/dom " /proc/mounts)"; '
+                         'cat /var/lib/tenerix/dom-kernel', 'STATE_DONE')
+            assert out.count('mounted=0') == 2, 'DOM left mounted'
+            assert 'DOM already boots 6.18.59-0-lts (recorded); DOM not mounted' in out
+            guest.expect(PROMPT)
+            out = marker(guest, 'dom=$(grep -l "^PARTUUID=fd8988d9-01$" /sys/class/block/*/uevent); '
+                         'dom=/dev/$(basename "$(dirname "$dom")"); mount -t vfat -o ro "$dom" /media/dom; '
+                         'cat /media/dom/SYSLINUX.CFG; umount /media/dom; ls /lib/modules; modinfo -n it87; '
                          'modinfo -F vermagic /lib/modules/6.18.59-0-lts/updates/it87.ko; lsmod | grep -c e1000', 'CHECK_DONE')
             assert 'LINUX /k/6.18.59-0-lts/vmlinuz' in out and 'LABEL disk-previous' in out
             assert 'LINUX /g1/vmlinuz-6.18.58-0-lts' in out and 'LABEL dom' in out and 'LABEL recovery' in out
