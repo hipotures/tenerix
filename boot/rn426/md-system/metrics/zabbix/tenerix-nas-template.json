@@ -92,7 +92,7 @@
      },
      {
       "uuid": "dfbd3fdbbbf246a681411ee49432df0f",
-      "name": "Load average (1m)",
+      "name": "Load average (1m avg)",
       "type": "DEPENDENT",
       "key": "tenerix.load1",
       "delay": "0",
@@ -120,8 +120,37 @@
       ]
      },
      {
+      "uuid": "86bd493b130f4f4c828ff31b56906305",
+      "name": "Load average (5m avg)",
+      "type": "DEPENDENT",
+      "key": "tenerix.load5",
+      "delay": "0",
+      "value_type": "FLOAT",
+      "units": "",
+      "description": "",
+      "preprocessing": [
+       {
+        "type": "PROMETHEUS_PATTERN",
+        "parameters": [
+         "tenerix_load{period=\"5m\"}",
+         "value",
+         ""
+        ]
+       }
+      ],
+      "master_item": {
+       "key": "tenerix.federate"
+      },
+      "tags": [
+       {
+        "tag": "component",
+        "value": "system"
+       }
+      ]
+     },
+     {
       "uuid": "a86e2c74e1bc45c39af19bb6eefcfb3f",
-      "name": "Load average (15m)",
+      "name": "Load average (15m avg)",
       "type": "DEPENDENT",
       "key": "tenerix.load15",
       "delay": "0",
