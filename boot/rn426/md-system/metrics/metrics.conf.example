@@ -1,0 +1,9 @@
+# /etc/tenerix/metrics.conf — tenerix-metrics configuration (key = value).
+# OTLP/HTTP metrics endpoint of the OpenTelemetry Collector (required).
+endpoint = http://COLLECTOR:4318/v1/metrics
+# Seconds between cycles; slow collectors (smart, info) keep their own interval.
+interval = 60
+# HTTP timeout in seconds.
+timeout = 10
+# Collectors to switch off (see: tenerix-metrics --list), e.g.:
+# disable = smart

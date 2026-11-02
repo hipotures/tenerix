@@ -1,0 +1,5 @@
+#!/bin/sh
+# Started by OpenRC "local": push NAS health metrics to the OpenTelemetry Collector.
+[ -f /etc/tenerix/metrics.conf ] || exit 0
+start-stop-daemon -S -b -m -p /run/tenerix-metrics.pid -1 /var/log/tenerix-metrics.log -2 /var/log/tenerix-metrics.log \
+    -x /usr/bin/python3 -- /usr/local/sbin/tenerix-metrics

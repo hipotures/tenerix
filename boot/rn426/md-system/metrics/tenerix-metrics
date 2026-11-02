@@ -1,0 +1,746 @@
+#!/usr/bin/env python3
+"""tenerix-metrics: push Tenerix NAS health metrics to an OpenTelemetry Collector.
+
+Layout (each section below is a future module if the file grows too large):
+
+  model       Sample: one measured value, and the Snapshot handed to every sink.
+  context     Context: the only access to files, commands and the clock (tests fake it).
+  collectors  Collector subclasses; @register adds one to the agent. Each has its own
+              interval; between reads the agent re-sends its last good samples.
+  sinks       Sink subclasses receive every Snapshot: OTLP/HTTP JSON, text for humans.
+  agent       Agent: schedules collectors, adds its own health samples, feeds the sinks.
+  config/cli  key = value configuration file and command line.
+
+Extending:
+  * new data source  -> subclass Collector, set name/interval, yield Samples, @register.
+    A source that reacts to events (e.g. front-panel buttons) starts a thread in start()
+    and reports what it counted from collect().
+  * new destination  -> subclass Sink and add it in build_sinks() (e.g. the front panel).
+
+Standard library only; runs on the NAS as root under OpenRC (/etc/local.d).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Iterable, Iterator
+
+VERSION = '0.1.0'
+DEFAULT_CONFIG = '/etc/tenerix/metrics.conf'
+PREFIX = 'tenerix_'
+
+
+def log(message: str) -> None:
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} tenerix-metrics: {message}", file=sys.stderr, flush=True)
+
+
+# ---------------------------------------------------------------------------- model
+
+GAUGE = 'gauge'
+COUNTER = 'counter'   # monotonic since boot: exported as a cumulative sum, Prometheus adds _total
+
+
+@dataclass(frozen=True)
+class Sample:
+    """One value. `unit` is UCUM ('By', 's', 'Cel', 'V', '1' or ''); Prometheus derives suffixes from it."""
+    name: str
+    value: float
+    labels: tuple[tuple[str, str], ...] = ()
+    unit: str = ''
+    kind: str = GAUGE
+
+
+def gauge(metric: str, value: float, unit: str = '', /, **labels: object) -> Sample:
+    return Sample(PREFIX + metric, value, _labels(labels), unit, GAUGE)
+
+
+def counter(metric: str, value: float, unit: str = '', /, **labels: object) -> Sample:
+    return Sample(PREFIX + metric, value, _labels(labels), unit, COUNTER)
+
+
+def _labels(labels: dict[str, object]) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((k, str(v)) for k, v in labels.items() if v is not None and v != ''))
+
+
+@dataclass
+class Snapshot:
+    """Everything one cycle produced; sinks must not modify it."""
+    time_ns: int
+    boot_ns: int
+    samples: list[Sample]
+    resource: dict[str, str]
+
+
+# -------------------------------------------------------------------------- context
+
+class Context:
+    """File system, commands and clock as seen by collectors. `root` lets tests use a fake tree."""
+
+    def __init__(self, root: str | Path = '/'):
+        self.root = Path(root)
+
+    def path(self, path: str) -> Path:
+        return self.root / path.lstrip('/')
+
+    def read(self, path: str) -> str:
+        return self.path(path).read_text(errors='replace')
+
+    def read_bytes(self, path: str) -> bytes:
+        return self.path(path).read_bytes()
+
+    def try_read(self, path: str, default: str | None = None) -> str | None:
+        try:
+            return self.read(path).strip()
+        except OSError:
+            return default
+
+    def glob(self, pattern: str) -> list[str]:
+        """Absolute (root-relative) paths matching pattern, sorted."""
+        return sorted('/' + str(p.relative_to(self.root)) for p in self.root.glob(pattern.lstrip('/')))
+
+    def exists(self, path: str) -> bool:
+        return self.path(path).exists()
+
+    def realpath(self, path: str) -> str:
+        return os.path.realpath(path) if self.root == Path('/') else path
+
+    def run(self, argv: list[str], timeout: float = 30) -> subprocess.CompletedProcess:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
+
+    def statvfs(self, path: str) -> os.statvfs_result:
+        return os.statvfs(self.path(path))
+
+    def uname(self) -> os.uname_result:
+        return os.uname()
+
+    def hostname(self) -> str:
+        return self.try_read('/etc/hostname') or socket.gethostname()
+
+    def boot_time(self) -> int:
+        for line in self.read('/proc/stat').splitlines():
+            if line.startswith('btime '):
+                return int(line.split()[1])
+        raise RuntimeError('btime missing from /proc/stat')
+
+
+def _int(text: str | None, default: int | None = None) -> int | None:
+    try:
+        return int(str(text).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+# ----------------------------------------------------------------------- collectors
+
+class Collector:
+    """Base class. `interval` is how often the source is actually read (seconds)."""
+    name = ''
+    interval = 60
+
+    def start(self, ctx: Context) -> None:
+        """Called once before the first collect(): discovery, background threads."""
+
+    def collect(self, ctx: Context) -> Iterable[Sample]:
+        raise NotImplementedError
+
+
+REGISTRY: list[type[Collector]] = []
+
+
+def register(cls: type[Collector]) -> type[Collector]:
+    REGISTRY.append(cls)
+    return cls
+
+
+@register
+class MdCollector(Collector):
+    """Linux software RAID arrays: state, members, degradation, resync progress."""
+    name = 'md'
+
+    def collect(self, ctx):
+        for base in ctx.glob('/sys/block/md*/md'):
+            md = base.split('/')[3]
+            state = ctx.try_read(f'{base}/array_state', '') or ''
+            level = ctx.try_read(f'{base}/level', '') or ''
+            yield gauge('md_up', int(state not in ('', 'inactive', 'clear')), md=md, level=level)
+            members = [ctx.try_read(f'{m}/state', '') or '' for m in ctx.glob(f'{base}/dev-*')]
+            expected = _int(ctx.try_read(f'{base}/raid_disks'))
+            if expected is not None:
+                yield gauge('md_disks', expected, md=md)
+            yield gauge('md_disks_active', sum('in_sync' in s for s in members), md=md)
+            yield gauge('md_disks_failed', sum('faulty' in s for s in members), md=md)
+            degraded = _int(ctx.try_read(f'{base}/degraded'))
+            if degraded is not None:
+                yield gauge('md_degraded', degraded, md=md)
+            action = ctx.try_read(f'{base}/sync_action', '') or ''
+            if action:
+                yield gauge('md_sync_active', int(action not in ('idle', 'frozen')), md=md, action=action)
+                done = re.match(r'(\d+)\s*/\s*(\d+)', ctx.try_read(f'{base}/sync_completed', '') or '')
+                if done and int(done.group(2)):
+                    yield gauge('md_sync_progress_ratio', int(done.group(1)) / int(done.group(2)), '1', md=md)
+            mismatch = _int(ctx.try_read(f'{base}/mismatch_cnt'))
+            if mismatch is not None:
+                yield gauge('md_mismatch_sectors', mismatch, md=md)
+
+
+@register
+class CryptCollector(Collector):
+    """LUKS volumes: open or not. Backing devices are found once at start (blkid reads the
+    disks, so it is not repeated: a spun-down disk must not be woken every cycle)."""
+    name = 'crypt'
+
+    def __init__(self):
+        self.luks: set[str] = set()
+
+    def start(self, ctx):
+        out = ctx.run(['blkid']).stdout
+        for line in out.splitlines():
+            if 'TYPE="crypto_LUKS"' in line:
+                self.luks.add(line.split(':', 1)[0].rsplit('/', 1)[-1])
+
+    def collect(self, ctx):
+        opened: dict[str, str] = {}
+        for dm in ctx.glob('/sys/block/dm-*'):
+            if not (ctx.try_read(f'{dm}/dm/uuid', '') or '').startswith('CRYPT-'):
+                continue
+            name = ctx.try_read(f'{dm}/dm/name', '') or dm.rsplit('/', 1)[-1]
+            for slave in ctx.glob(f'{dm}/slaves/*'):
+                opened[slave.rsplit('/', 1)[-1]] = name
+        for device in sorted(self.luks | set(opened)):
+            yield gauge('crypt_open', int(device in opened), device=device, name=opened.get(device))
+
+
+@register
+class FilesystemCollector(Collector):
+    """Every mounted block-device file system (types without 'nodev' in /proc/filesystems):
+    capacity, inodes, read-only state and the file system's own error counters."""
+    name = 'filesystem'
+
+    BTRFS_ERRORS = {'write_io_errs': 'write_io', 'read_io_errs': 'read_io', 'flush_io_errs': 'flush_io',
+                    'corruption_errs': 'corruption', 'generation_errs': 'generation'}
+
+    def collect(self, ctx):
+        real = {line.split()[-1] for line in ctx.read('/proc/filesystems').splitlines()
+                if line.strip() and not line.startswith('nodev')}
+        seen: set[str] = set()
+        for line in ctx.read('/proc/mounts').splitlines():
+            device, mountpoint, fstype, options = line.split()[:4]
+            mountpoint = mountpoint.replace('\\040', ' ')
+            if fstype not in real or device in seen:
+                continue   # pseudo file system, or another mount (subvolume) of the same device
+            seen.add(device)
+            labels = dict(mountpoint=mountpoint, device=device, fstype=fstype)
+            st = ctx.statvfs(mountpoint)
+            yield gauge('fs_size_bytes', st.f_blocks * st.f_frsize, 'By', **labels)
+            yield gauge('fs_free_bytes', st.f_bfree * st.f_frsize, 'By', **labels)
+            yield gauge('fs_avail_bytes', st.f_bavail * st.f_frsize, 'By', **labels)
+            if st.f_files:
+                yield gauge('fs_files', st.f_files, **labels)
+                yield gauge('fs_files_free', st.f_ffree, **labels)
+            yield gauge('fs_readonly', int('ro' in options.split(',')), **labels)
+            if fstype == 'btrfs':
+                yield from self.btrfs_errors(ctx, mountpoint, labels)
+            elif fstype.startswith('ext'):
+                yield from self.ext_errors(ctx, device, labels)
+
+    def btrfs_errors(self, ctx, mountpoint, labels):
+        out = ctx.run(['btrfs', 'device', 'stats', mountpoint])
+        if out.returncode:
+            raise RuntimeError(f'btrfs device stats {mountpoint}: {out.stderr.strip()}')
+        for line in out.stdout.splitlines():
+            m = re.match(r'\[(.+)\]\.(\w+)\s+(\d+)', line)
+            if m and m.group(2) in self.BTRFS_ERRORS:
+                yield gauge('fs_errors', int(m.group(3)), **labels, member=m.group(1),
+                            type=self.BTRFS_ERRORS[m.group(2)])
+
+    def ext_errors(self, ctx, device, labels):
+        dev = ctx.realpath(device).rsplit('/', 1)[-1]
+        count = _int(ctx.try_read(f'/sys/fs/ext4/{dev}/errors_count'))
+        if count is not None:
+            yield gauge('fs_errors', count, **labels, member=device, type='errors')
+
+
+@register
+class NetworkCollector(Collector):
+    """Traffic of interfaces with a link (carrier); unplugged ports are not reported."""
+    name = 'network'
+
+    COUNTERS = [('rx_bytes', 'net_received_bytes', 'By'), ('tx_bytes', 'net_transmitted_bytes', 'By'),
+                ('rx_packets', 'net_received_packets', ''), ('tx_packets', 'net_transmitted_packets', ''),
+                ('rx_errors', 'net_receive_errors', ''), ('tx_errors', 'net_transmit_errors', ''),
+                ('rx_dropped', 'net_receive_drops', ''), ('tx_dropped', 'net_transmit_drops', '')]
+
+    def collect(self, ctx):
+        for base in ctx.glob('/sys/class/net/*'):
+            iface = base.rsplit('/', 1)[-1]
+            if iface == 'lo' or ctx.try_read(f'{base}/carrier') != '1':
+                continue
+            for source, name, unit in self.COUNTERS:
+                value = _int(ctx.try_read(f'{base}/statistics/{source}'))
+                if value is not None:
+                    yield counter(name, value, unit, interface=iface)
+            speed = _int(ctx.try_read(f'{base}/speed'))
+            if speed and speed > 0:
+                yield gauge('net_link_speed_megabits', speed, interface=iface)
+
+
+@register
+class DiskIoCollector(Collector):
+    """Block I/O of whole devices (disks, md, dm) since boot."""
+    name = 'diskio'
+
+    def collect(self, ctx):
+        devices = {p.rsplit('/', 1)[-1] for p in ctx.glob('/sys/block/*')}
+        for line in ctx.read('/proc/diskstats').splitlines():
+            f = line.split()
+            if len(f) < 14 or f[2] not in devices or f[2].startswith(('ram', 'loop', 'zram')):
+                continue
+            dev = f[2]
+            yield counter('disk_reads', int(f[3]), device=dev)
+            yield counter('disk_read_bytes', int(f[5]) * 512, 'By', device=dev)
+            yield counter('disk_writes', int(f[7]), device=dev)
+            yield counter('disk_written_bytes', int(f[9]) * 512, 'By', device=dev)
+            yield counter('disk_io_time_seconds', int(f[12]) / 1000, 's', device=dev)
+
+
+@register
+class HwmonCollector(Collector):
+    """Kernel hardware monitors: CPU cores (coretemp), board sensors and fans (it87).
+    Unconnected inputs are skipped: a temperature of -128 (it87: no diode) and a fan header
+    that has not turned since the agent started. A fan that stops later still reports 0."""
+    name = 'hwmon'
+    NO_SENSOR = -128000
+
+    def __init__(self):
+        self.fans_seen: set[str] = set()
+
+    KINDS = {'temp': ('hwmon_temperature_celsius', 'Cel', 1000),
+             'fan': ('hwmon_fan_rpm', '', 1),
+             'in': ('hwmon_voltage_volts', 'V', 1000)}
+
+    def collect(self, ctx):
+        for base in ctx.glob('/sys/class/hwmon/hwmon*'):
+            chip = ctx.try_read(f'{base}/name', '') or base.rsplit('/', 1)[-1]
+            for path in ctx.glob(f'{base}/*_input'):
+                m = re.match(r'(temp|fan|in)(\d+)_input$', path.rsplit('/', 1)[-1])
+                value = _int(ctx.try_read(path))
+                if not m or value is None:
+                    continue
+                if m.group(1) == 'temp' and value <= self.NO_SENSOR:
+                    continue
+                if m.group(1) == 'fan':
+                    if value > 0:
+                        self.fans_seen.add(path)
+                    elif path not in self.fans_seen:
+                        continue
+                name, unit, scale = self.KINDS[m.group(1)]
+                sensor = ctx.try_read(f'{base}/{m.group(1)}{m.group(2)}_label') or f'{m.group(1)}{m.group(2)}'
+                yield gauge(name, value / scale, unit, chip=chip, sensor=sensor)
+
+
+@register
+class SystemCollector(Collector):
+    """Load, memory, CPU time and uptime."""
+    name = 'system'
+
+    MEMORY = {'MemTotal': 'memory_total_bytes', 'MemAvailable': 'memory_available_bytes',
+              'MemFree': 'memory_free_bytes', 'SwapTotal': 'swap_total_bytes', 'SwapFree': 'swap_free_bytes'}
+    CPU_MODES = ['user', 'nice', 'system', 'idle', 'iowait', 'irq', 'softirq', 'steal']
+
+    def collect(self, ctx):
+        load = ctx.read('/proc/loadavg').split()
+        for i, period in enumerate(('1m', '5m', '15m')):
+            yield gauge('load', float(load[i]), period=period)
+        for line in ctx.read('/proc/meminfo').splitlines():
+            key, _, rest = line.partition(':')
+            if key in self.MEMORY:
+                yield gauge(self.MEMORY[key], int(rest.split()[0]) * 1024, 'By')
+        tick = os.sysconf('SC_CLK_TCK')
+        for line in ctx.read('/proc/stat').splitlines():
+            if line.startswith('cpu '):
+                for mode, value in zip(self.CPU_MODES, line.split()[1:]):
+                    yield counter('cpu_seconds', int(value) / tick, 's', mode=mode)
+        yield gauge('uptime_seconds', float(ctx.read('/proc/uptime').split()[0]), 's')
+
+
+@register
+class NfsCollector(Collector):
+    """NFS server: kernel threads running, port 2049 listening, exports and known clients."""
+    name = 'nfs'
+
+    def collect(self, ctx):
+        threads = _int(ctx.try_read('/proc/fs/nfsd/threads'), 0) or 0
+        listening = any(self.listens(ctx.try_read(f'/proc/net/{proto}', '') or '', 2049)
+                        for proto in ('tcp', 'tcp6'))
+        exports = [l for l in (ctx.try_read('/var/lib/nfs/etab', '') or '').splitlines() if l.strip()]
+        yield gauge('nfs_server_up', int(threads > 0 and listening))
+        yield gauge('nfs_threads', threads)
+        yield gauge('nfs_exports', len(exports))
+        yield gauge('nfs_clients', len(ctx.glob('/proc/fs/nfsd/clients/*')))
+
+    @staticmethod
+    def listens(table: str, port: int) -> bool:
+        for line in table.splitlines()[1:]:
+            f = line.split()
+            if len(f) > 3 and f[3] == '0A' and int(f[1].rsplit(':', 1)[1], 16) == port:
+                return True
+        return False
+
+
+@register
+class SystemInfoCollector(Collector):
+    """Kernel and OS release; read hourly, re-sent every cycle."""
+    name = 'info'
+    interval = 3600
+
+    def collect(self, ctx):
+        u = ctx.uname()
+        yield gauge('kernel_info', 1, release=u.release, version=u.version, machine=u.machine)
+        os_release = dict(re.findall(r'^(\w+)="?([^"\n]*)"?$', ctx.try_read('/etc/os-release', '') or '', re.M))
+        if os_release:
+            yield gauge('os_info', 1, id=os_release.get('ID'), version_id=os_release.get('VERSION_ID'))
+        yield gauge('agent_info', 1, version=VERSION)
+
+
+@register
+class SmartCollector(Collector):
+    """SMART health and key attributes of SATA disks, every 10 minutes. `-n standby` never
+    spins a disk up: a sleeping disk reports standby=1 and keeps its last counters."""
+    name = 'smart'
+    interval = 600
+
+    ATTRIBUTES = {5: ('smart_reallocated_sectors', ''), 197: ('smart_pending_sectors', ''),
+                  198: ('smart_offline_uncorrectable_sectors', ''), 199: ('smart_udma_crc_errors', ''),
+                  9: ('smart_power_on_hours', ''), 4: ('smart_start_stop_count', ''),
+                  193: ('smart_load_cycle_count', '')}
+    TEMPERATURE = (194, 190)
+
+    def __init__(self):
+        self.unsupported: set[str] = set()
+        self.last: dict[str, list[Sample]] = {}
+
+    def disks(self, ctx) -> list[str]:
+        return [p.rsplit('/', 1)[-1] for p in ctx.glob('/sys/block/sd*')
+                if ctx.try_read(f'{p}/removable') != '1']
+
+    def identity(self, ctx, disk) -> tuple[str, str]:
+        model = ctx.try_read(f'/sys/block/{disk}/device/model', '') or ''
+        try:
+            raw = ctx.read_bytes(f'/sys/block/{disk}/device/vpd_pg80')
+            serial = raw[4:4 + raw[3]].decode('ascii', 'replace').strip()
+        except (OSError, IndexError):
+            serial = ''
+        return model, serial
+
+    def collect(self, ctx):
+        for disk in self.disks(ctx):
+            if disk in self.unsupported:
+                continue
+            model, serial = self.identity(ctx, disk)
+            out = ctx.run(['smartctl', '-n', 'standby', '-H', '-A', f'/dev/{disk}'], timeout=60).stdout
+            if 'Please specify device type' in out or 'Unknown USB bridge' in out:
+                self.unsupported.add(disk)   # e.g. the boot DOM behind a USB bridge
+                continue
+            labels = dict(disk=disk, serial=serial)
+            yield gauge('disk_info', 1, model=model, **labels)
+            if re.search(r'Device is in (STANDBY|SLEEP|IDLE)', out, re.I):
+                yield gauge('disk_standby', 1, **labels)
+                yield from self.last.get(disk, [])
+                continue
+            yield gauge('disk_standby', 0, **labels)
+            samples = list(self.parse(out, labels))
+            self.last[disk] = [s for s in samples if 'temperature' not in s.name]
+            yield from samples
+
+    def parse(self, out, labels) -> Iterator[Sample]:
+        health = re.search(r'overall-health self-assessment test result:\s*(\w+)', out)
+        if health:
+            yield gauge('disk_smart_healthy', int(health.group(1) == 'PASSED'), **labels)
+        raw: dict[int, int] = {}
+        for line in out.splitlines():
+            m = re.match(r'\s*(\d+)\s+\S+\s+0x[0-9a-fA-F]+\s+(?:\S+\s+){6}(\d+)', line)
+            if m:
+                raw[int(m.group(1))] = int(m.group(2))
+        for attr, (name, unit) in self.ATTRIBUTES.items():
+            if attr in raw:
+                yield gauge(name, raw[attr], unit, **labels)
+        for attr in self.TEMPERATURE:
+            if attr in raw:
+                yield gauge('disk_temperature_celsius', raw[attr], 'Cel', **labels)
+                break
+
+
+# ---------------------------------------------------------------------------- sinks
+
+class Sink:
+    """Receives every Snapshot. publish() returns True on success."""
+    name = ''
+
+    def publish(self, snapshot: Snapshot) -> bool:
+        raise NotImplementedError
+
+
+def otlp_payload(snapshot: Snapshot) -> dict:
+    """OTLP/JSON ExportMetricsServiceRequest. Counters start at boot (kernel counters)."""
+    metrics: dict[str, dict] = {}
+    for s in snapshot.samples:
+        kind = 'sum' if s.kind == COUNTER else 'gauge'
+        metric = metrics.get(s.name)
+        if metric is None:
+            body = {'dataPoints': []}
+            if kind == 'sum':
+                body.update(aggregationTemporality=2, isMonotonic=True)
+            metric = metrics[s.name] = {'name': s.name, 'unit': s.unit, kind: body}
+        elif kind not in metric or metric['unit'] != s.unit:
+            raise ValueError(f'{s.name}: mixed kind or unit')
+        point = {'attributes': _attributes(dict(s.labels)), 'timeUnixNano': str(snapshot.time_ns)}
+        if kind == 'sum':
+            point['startTimeUnixNano'] = str(snapshot.boot_ns)
+        if isinstance(s.value, int) and not isinstance(s.value, bool):
+            point['asInt'] = str(s.value)
+        else:
+            point['asDouble'] = float(s.value)
+        metric[kind]['dataPoints'].append(point)
+    return {'resourceMetrics': [{
+        'resource': {'attributes': _attributes(snapshot.resource)},
+        'scopeMetrics': [{'scope': {'name': 'tenerix-metrics', 'version': VERSION},
+                          'metrics': list(metrics.values())}]}]}
+
+
+def _attributes(values: dict[str, str]) -> list[dict]:
+    return [{'key': k, 'value': {'stringValue': v}} for k, v in sorted(values.items())]
+
+
+class OtlpHttpSink(Sink):
+    """POST OTLP/JSON to a Collector. Nothing is queued: a failed cycle is simply lost, the
+    next one carries current values (counters are cumulative, so rates stay correct)."""
+    name = 'otlp'
+
+    def __init__(self, endpoint: str, timeout: float = 10):
+        self.endpoint = endpoint
+        self.timeout = timeout
+        self.failing = False
+
+    def publish(self, snapshot):
+        body = json.dumps(otlp_payload(snapshot), separators=(',', ':')).encode()
+        request = urllib.request.Request(self.endpoint, data=body, method='POST',
+                                         headers={'Content-Type': 'application/json'})
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                response.read()
+        except (urllib.error.URLError, OSError) as error:
+            if not self.failing:
+                log(f'export to {self.endpoint} failed: {error}')
+            self.failing = True
+            return False
+        if self.failing:
+            log(f'export to {self.endpoint} works again')
+        self.failing = False
+        return True
+
+
+class TextSink(Sink):
+    """Human-readable dump (Prometheus exposition style) for --print."""
+    name = 'text'
+
+    def __init__(self, stream=sys.stdout):
+        self.stream = stream
+
+    def publish(self, snapshot):
+        for s in sorted(snapshot.samples, key=lambda s: (s.name, s.labels)):
+            labels = ','.join(f'{k}="{v}"' for k, v in s.labels)
+            suffix = '_total' if s.kind == COUNTER else ''
+            print(f"{s.name}{suffix}{{{labels}}} {s.value:g}", file=self.stream)
+        return True
+
+
+class JsonSink(Sink):
+    """The exact OTLP request body, for --json."""
+    name = 'json'
+
+    def __init__(self, stream=sys.stdout):
+        self.stream = stream
+
+    def publish(self, snapshot):
+        json.dump(otlp_payload(snapshot), self.stream, indent=1)
+        print(file=self.stream)
+        return True
+
+
+# ---------------------------------------------------------------------------- agent
+
+@dataclass
+class _State:
+    samples: list[Sample] = field(default_factory=list)
+    last_run: float | None = None      # monotonic time of the last attempt
+    last_ok: float | None = None       # wall time of the last successful read
+    up: bool = False
+
+
+class Agent:
+    """Runs every collector when due, re-sends cached samples in between, and hands each
+    cycle's Snapshot to all sinks. A failing collector drops only its own samples."""
+
+    def __init__(self, ctx: Context, collectors: list[Collector], sinks: list[Sink],
+                 clock: Callable[[], float] = time.time, monotonic: Callable[[], float] = time.monotonic):
+        self.ctx = ctx
+        self.collectors = collectors
+        self.sinks = sinks
+        self.clock = clock
+        self.monotonic = monotonic
+        self.state = {c.name: _State() for c in collectors}
+        self.exported: dict[str, bool] = {}
+        self.boot_ns = ctx.boot_time() * 1_000_000_000
+        self.resource = {'host.name': ctx.hostname(), 'service.name': 'tenerix-metrics',
+                         'service.instance.id': ctx.hostname(), 'service.version': VERSION}
+        for c in collectors:
+            try:
+                c.start(ctx)
+            except Exception as error:   # a broken discovery must not stop the other collectors
+                log(f'{c.name}: start failed: {error}')
+
+    def cycle(self) -> Snapshot:
+        started = self.monotonic()
+        for c in self.collectors:
+            st = self.state[c.name]
+            if st.last_run is not None and started - st.last_run < c.interval - 1:
+                continue
+            st.last_run = started
+            try:
+                st.samples = list(c.collect(self.ctx))
+            except Exception as error:
+                if st.up or st.last_ok is None:
+                    log(f'{c.name}: {type(error).__name__}: {error}')
+                st.samples, st.up = [], False
+            else:
+                st.up, st.last_ok = True, self.clock()
+        now = self.clock()
+        samples = [s for c in self.collectors for s in self.state[c.name].samples]
+        for c in self.collectors:
+            st = self.state[c.name]
+            samples.append(gauge('agent_collector_up', int(st.up), collector=c.name))
+            if st.last_ok is not None:
+                samples.append(gauge('agent_collector_age_seconds', round(now - st.last_ok, 3), 's',
+                                     collector=c.name))
+        for sink, ok in self.exported.items():
+            samples.append(gauge('agent_export_success', int(ok), sink=sink))
+        samples.append(gauge('agent_cycle_seconds', round(self.monotonic() - started, 3), 's'))
+        snapshot = Snapshot(int(now * 1e9), self.boot_ns, samples, self.resource)
+        for sink in self.sinks:
+            try:
+                self.exported[sink.name] = sink.publish(snapshot)
+            except Exception as error:
+                log(f'{sink.name}: {type(error).__name__}: {error}')
+                self.exported[sink.name] = False
+        return snapshot
+
+    def run(self, interval: float, stop: threading.Event) -> None:
+        log(f'started: {len(self.collectors)} collectors, every {interval:g}s, '
+            f"sinks: {', '.join(s.name for s in self.sinks)}")
+        while not stop.is_set():
+            began = self.monotonic()
+            self.cycle()
+            stop.wait(max(1.0, interval - (self.monotonic() - began)))
+        log('stopped')
+
+
+# ----------------------------------------------------------------------- config/cli
+
+@dataclass
+class Config:
+    endpoint: str = ''
+    interval: float = 60
+    timeout: float = 10
+    disabled: tuple[str, ...] = ()
+
+
+def load_config(path: str) -> Config:
+    """`key = value` lines; '#' starts a comment. Keys: endpoint, interval, timeout, disable."""
+    cfg = Config()
+    try:
+        text = Path(path).read_text()
+    except FileNotFoundError:
+        return cfg
+    for number, line in enumerate(text.splitlines(), 1):
+        line = line.split('#', 1)[0].strip()
+        if not line:
+            continue
+        key, sep, value = (part.strip() for part in line.partition('='))
+        if not sep:
+            raise SystemExit(f'{path}:{number}: expected key = value')
+        if key == 'endpoint':
+            cfg.endpoint = value
+        elif key in ('interval', 'timeout'):
+            setattr(cfg, key, float(value))
+        elif key == 'disable':
+            cfg.disabled = tuple(v for v in re.split(r'[\s,]+', value) if v)
+        else:
+            raise SystemExit(f'{path}:{number}: unknown key {key!r}')
+    return cfg
+
+
+def build_collectors(disabled: Iterable[str] = ()) -> list[Collector]:
+    unknown = set(disabled) - {c.name for c in REGISTRY}
+    if unknown:
+        raise SystemExit(f"unknown collector(s): {', '.join(sorted(unknown))}")
+    return [cls() for cls in REGISTRY if cls.name not in disabled]
+
+
+def build_sinks(cfg: Config, args: argparse.Namespace) -> list[Sink]:
+    sinks: list[Sink] = []
+    if args.print:
+        sinks.append(TextSink())
+    if args.json:
+        sinks.append(JsonSink())
+    if not args.no_send:
+        if not cfg.endpoint:
+            raise SystemExit(f'no endpoint configured in {args.config} (or use --no-send)')
+        sinks.append(OtlpHttpSink(cfg.endpoint, cfg.timeout))
+    return sinks
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument('--once', action='store_true', help='one cycle, then exit')
+    parser.add_argument('--print', action='store_true', help='print samples as text')
+    parser.add_argument('--json', action='store_true', help='print the OTLP request body')
+    parser.add_argument('--no-send', action='store_true', help='do not export to the Collector')
+    parser.add_argument('--list', action='store_true', help='list collectors and exit')
+    args = parser.parse_args(argv)
+    if args.list:
+        for cls in REGISTRY:
+            print(f'{cls.name:12} every {cls.interval:>5}s  {(cls.__doc__ or "").split(chr(10))[0]}')
+        return 0
+    cfg = load_config(args.config)
+    agent = Agent(Context(), build_collectors(cfg.disabled), build_sinks(cfg, args))
+    if args.once:
+        agent.cycle()
+        failed = [name for name, ok in agent.exported.items() if not ok]
+        down = [name for name, st in agent.state.items() if not st.up]
+        if down:
+            print(f"collectors failed: {', '.join(down)}", file=sys.stderr)
+        if failed:
+            print(f"export failed: {', '.join(failed)}", file=sys.stderr)
+        return 1 if failed or down else 0
+    stop = threading.Event()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, lambda *_: stop.set())
+    agent.run(cfg.interval, stop)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
