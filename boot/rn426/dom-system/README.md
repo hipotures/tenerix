@@ -13,7 +13,7 @@ the NAS boots from the DOM by itself, gets DHCP and runs sshd.
 | Network | DHCP on eth3, eth0, eth1, eth2 (whichever port has a cable) |
 | SSH | root with keys only: three security keys (`artifacts/dom-system/authorized_keys`) |
 | Console | root password on ttyS0/tty1: `artifacts/dom-system/root-password` (outside Git) |
-| Fans/sensors | exact-ABI `it87.ko` (IT8613E) in `/lib/modules/…/updates/`, loaded at boot with the hardware-test parameters; `coretemp`. No automatic fan control loop: speed stays at the BIOS setting |
+| Fans/sensors | exact-ABI `it87.ko` (IT8613E) in `/lib/modules/…/updates/`, loaded at boot with the hardware-test parameters; `coretemp`. The [fan keeper](fan/README.md) sets PWM2 to 80 and switches to full speed on excessive temperatures or invalid CPU/board readings |
 | Disks | `mdadm.conf` is `AUTO -all`; nothing is assembled or mounted automatically if disks are inserted |
 
 `build.py` keeps only the kernel modules listed in it, plus their dependencies (USB, SATA,
