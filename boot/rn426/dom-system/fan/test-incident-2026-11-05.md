@@ -22,3 +22,9 @@ The unqualified experimental script was removed from the development changes.
 No permanent controller or configuration change was made on the NAS. Further
 experiments must first account for the existing keeper's termination behavior,
 real full-duty mode semantics, and the operator's requested restoration behavior.
+
+After restoration, the operator asked for the script and launch instructions.
+A corrected version was prepared: STOP/CONT handoff replaces TERM, and cleanup
+restores the original PWM and resumes the original keeper. Simulation coverage
+now explicitly rejects TERM or PWM255 during the test lifecycle. The corrected
+script was uploaded without launching a second hardware experiment.

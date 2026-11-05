@@ -31,3 +31,56 @@ The hardware interface is provided by the `it87` kernel module with IT8613E
 support; see [`hardware/it8613e`](../../../../hardware/it8613e/README.md).
 That driver exposes PWM and sensor attributes; the shell script above chooses
 the operating duty and emergency thresholds.
+
+## Manual descending PWM experiment
+
+[`fan-descent.py`](fan-descent.py) is a separate Python 3 script, run manually
+on the NAS. It requires root, smartctl, existing manual PWM mode, valid CPU,
+board and SATA disk temperatures, and one running original fan keeper.
+
+```sh
+ssh -t tenerix 'cd /tmp/tenerix-fan-descent && python3 fan-descent.py'
+```
+
+At current PWM80, it starts immediately with PWM72, then tests **64, 56, 48,
+40, 32, 24, 16, 8**, each for **ten minutes**. There is no extra PWM80 dwell.
+It does not test PWM0 by default. Timestamped JSONL logs are created in the
+working directory, and readings are printed to the terminal. `temps` and the
+login status display show `mode=test` during sampling.
+
+The original keeper is paused with SIGSTOP, preserving its process and policy.
+It is not terminated: TERM would invoke its PWM255 handler. The test verifies
+that the keeper is stopped before lowering PWM. On completion, Ctrl+C, TERM,
+HUP or a detected error after takeover, the script attempts to restore the
+initial PWM and resume the original keeper with SIGCONT. The experiment does
+not request PWM255. The resumed keeper retains its own emergency policy.
+
+Fast sensors are sampled every five seconds, SATA SMART temperatures every
+minute. SMART calls have five-second timeouts and do not wake sleeping disks.
+Missing readings, standby disks, invalid sensors, competing control writes or
+RPM below 300 / above 10000 abort the experiment. The highest CPU sensor is
+used, including package and core readings. Temperature stop limits are:
+
+| Sensor | Absolute stop | Rise from initial sample |
+| --- | --- | --- |
+| CPU | 60 C | 10 C |
+| Board | 45 C | 7 C |
+| Each SATA disk | 48 C | 3 C |
+
+These are conservative experimental guards, not manufacturer limits or a
+measured safe minimum. A successful ten-minute stage does not establish thermal
+equilibrium, operation under full load, or reliable fan restart. All aborts
+return control to the existing keeper rather than introducing a new permanent
+policy. SIGKILL, power loss, hung processes or failed hardware writes cannot be
+recovered by Python's cleanup handler; run attended with independent access to
+restore cooling. Do not stop or restart the original keeper during the test.
+
+Local simulation tests:
+
+```sh
+python3 -m unittest discover -s boot/rn426/dom-system/fan -p 'test_*.py' -v
+```
+
+The corrected script has not been run on the hardware. The earlier aborted
+experiment and restoration are recorded in
+[`test-incident-2026-11-05.md`](test-incident-2026-11-05.md).
